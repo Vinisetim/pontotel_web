@@ -50,3 +50,14 @@ def preencher_senha_entrar(navegador, senha):
 
 def clicar_folha(navegador):
     """aguarda a tela inicial se carregar e clica no card com o texto 'folha de ponto'"""
+
+    wait = WebDriverWait(navegador, TEMPO_ESPERA_PADRAO)
+
+    card_folha = wait.until(
+        EC.element_to_be_clickable(
+            (
+                By.XPATH, "//span[contains(normalize-space(), 'folha de pontos')]"
+            )
+        )
+    )
+    card_folha.click()
