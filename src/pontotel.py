@@ -206,3 +206,27 @@ def calcular_periodo_relatorios(admissao, demissao):
         "quantidade_relatorios": len(competencias),
     }
 
+def voltar_meses(navegador, quantidade_meses):
+    """
+    Clica no botão de voltar mes do pontotel N vezes
+    """
+
+    wait = WebDriverWait(navegador, TEMPO_ESPERA_PADRAO)
+
+    for numero_clique in range(quantidade_meses):
+        botao_mes_anterior = wait.until(
+            EC.element_to_be_clickable(
+                (
+                By.XPATH,
+                "//*[@aria-label='Mês anterior']"
+                 )
+            )
+        )
+
+        botao_mes_anterior.click()
+        print(f"Voltando mês: {numero_clique + 1} de {quantidade_meses}")
+
+        time.sleep(1)
+
+        
+
