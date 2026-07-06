@@ -1,7 +1,9 @@
 from selenium.webdriver.chrome import webdriver
+from selenium.webdriver.common import keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
 
 from src.config import URL_PONTOTEL, TEMPO_ESPERA_PADRAO
 
@@ -73,3 +75,49 @@ def clicar_folha(navegador):
     )
 
     aba_empregados.click()
+
+def buscar_empregado(navegador, matricula):
+    """
+    Busca um empregado na aba 'Empregados' usando o campo MATRICULA
+
+    Fluxo no site:
+    1. O campo de empregados já está ativo após clicar na aba empregados.
+    2. Digita a matrícula.
+    3. O dropdown abre.
+    4. A primeira opção é 'todos'.
+    5. Pressiona seta para baixo para selecionar o empregado sugerido.
+    6. Pressiona Enter.
+    7. Clica no botão Buscar.
+    """
+
+    wait = WebDriverWait(navegador, TEMPO_ESPERA_PADRAO)
+
+    campo_ativo = navegador.switch_to.active_element
+
+    campo_ativo.send_keys(keys.CONTROL, "a")
+    campo_ativo.send_keys(keys. BACKSPACE)
+
+    campo_ativo.send_keys(matricula)
+
+    wait.until(
+        EC.presence_of_element_located(
+            (
+                By.XPATH,
+                "//*[contains(normalize-space(), 'todos')]"
+            )
+        )
+    )
+
+    ActionChains(navegador)\
+        .send_keys(keys.ARROW_DOWN)\
+        .send_keys(keys.ENTER)\
+        .perform()
+
+    botao_buscar = wait.until(
+        EC.element_to_be_clickable(
+            (By.XPATH,
+             "//button[contains(normalize-space(), 'Buscar')]"
+             )
+        )
+    )
+    botao_buscar.click()
