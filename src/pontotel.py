@@ -1,5 +1,6 @@
 from selenium.webdriver.chrome import webdriver
-from selenium.webdriver.common import keys
+import time
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -94,11 +95,11 @@ def buscar_empregado(navegador, matricula):
 
     campo_ativo = navegador.switch_to.active_element
 
-    campo_ativo.send_keys(keys.CONTROL, "a")
-    campo_ativo.send_keys(keys. BACKSPACE)
+    campo_ativo.send_keys(Keys.CONTROL, "a")
+    campo_ativo.send_keys(Keys. BACKSPACE)
 
     campo_ativo.send_keys(matricula)
-
+    time.sleep(5)
     wait.until(
         EC.presence_of_element_located(
             (
@@ -109,8 +110,8 @@ def buscar_empregado(navegador, matricula):
     )
 
     ActionChains(navegador)\
-        .send_keys(keys.ARROW_DOWN)\
-        .send_keys(keys.ENTER)\
+        .send_keys(Keys.ARROW_DOWN)\
+        .send_keys(Keys.ENTER)\
         .perform()
 
     botao_buscar = wait.until(

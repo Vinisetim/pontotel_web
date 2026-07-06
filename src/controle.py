@@ -4,7 +4,7 @@ from src.config import CAMINHO_PLANILHA_CONTROLE
 COLUNAS_OBRIGATORIAS =[
     "MATRICULA",
     "NOME DO AUTOR",
-    "ADMISSÃO",
+    "ADMISSAO",
     "DEMISSAO",
 ]
 
@@ -25,6 +25,7 @@ def validar_colunas(df):
 
     colunas_planilha = list(df.columns)
 
+    print(colunas_planilha)
     colunas_faltantes = []
 
     for coluna in COLUNAS_OBRIGATORIAS:
