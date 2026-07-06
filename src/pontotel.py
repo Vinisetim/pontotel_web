@@ -1,3 +1,4 @@
+from selenium.webdriver.chrome import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -28,3 +29,24 @@ def preencher_email(navegador, email):
     )
 
     botao_proximo.click()
+
+def preencher_senha_entrar(navegador, senha):
+    """Preenche o campo senha do pontotel e em seguida clica em entrar"""
+
+    wait = WebDriverWait(navegador, TEMPO_ESPERA_PADRAO)
+
+    campo_senha= wait.until(
+        EC.visibility_of_element_located((By.ID, "password"))
+    )
+
+    campo_senha.clear()
+    campo_senha.send_keys(senha)
+
+    botao_entrar = wait.until(
+        EC.element_to_be_clickable((By.ID, "kc-login"))
+    )
+
+    botao_entrar.click()
+
+def clicar_folha(navegador):
+    """aguarda a tela inicial se carregar e clica no card com o texto 'folha de ponto'"""
