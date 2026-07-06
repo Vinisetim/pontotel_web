@@ -122,3 +122,87 @@ def buscar_empregado(navegador, matricula):
         )
     )
     botao_buscar.click()
+
+from datetime import date
+
+def calcular_diferenca(data_inicial, data_final):
+    """Calcula a diferença em meses entre duas datas"""
+    return (data_final.year - data_inicial.year) * 12 + (data_final.month - data_inicial.month)
+
+
+def voltar_um_mes(ano, mes):
+    """
+    Recebe um ano e mês, e retorna o mês anterior.
+    """
+
+    if mes == 1:
+        return ano - 1, 12
+
+    return ano, mes - 1
+
+
+
+def gerar_competencias_do_periodo(admissao, demissao):
+    """
+    Gera uma lista de competências entre o mês da demissão e o mês da admissão.
+
+    A lista vem em ordem decrescente, porque o site será navegado voltando mês a mês.
+
+    Exemplo:
+    admissao = 07/10/2019
+    demissao = 14/10/2024
+
+    Retorno:
+    [
+        "2024-10",
+        "2024-09",
+        "2024-08",
+        ...
+        "2019-10"
+    ]
+    """
+
+    if demissao < admissao:
+        raise ValueError("A data de demissão não pode ser anterior à data de admissão.")
+
+    ano_atual = demissao.year
+    mes_atual = demissao.month
+
+    ano_limite = admissao.year
+    mes_limite = admissao.month
+
+    competencias = []
+
+    while True:
+        competencia = f"{ano_atual}-{mes_atual:02d}"
+        competencias.append(competencia)
+
+        if ano_atual == ano_limite and mes_atual == mes_limite:
+            break
+
+        ano_atual, mes_atual = voltar_um_mes(ano_atual, mes_atual)
+
+    return competencias
+
+
+def calcular_periodo_relatorios(admissao, demissao):
+    """calcula as informações para navegar no Pontotel
+    retorna a quantidade de meses até a demissao (que vai ser o número de cliques para voltar)
+    competencia: lista de meses que devem ter relatorio gerado
+    """
+
+    data_atual = date.today()
+
+    meses_ate_demissao = calcular_diferenca(demissao, data_atual)
+
+    if meses_ate_demissao < 0:
+        raise ValueError("A data de demissão está no futuro em relação ao mês atual.")
+
+    competencias = gerar_competencias_do_periodo(admissao, demissao)
+
+    return {
+        "meses_ate_demissao": meses_ate_demissao,
+        "competencias": competencias,
+        "quantidade_relatorios": len(competencias),
+    }
+

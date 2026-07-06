@@ -4,7 +4,8 @@ from src.pontotel import (acessar_login,
                           preencher_email,
                           preencher_senha_entrar,
                           clicar_folha,
-                          buscar_empregado,)
+                          buscar_empregado,
+                          calcular_periodo_relatorios)
 
 def main():
     email = "denise.soares@jtptransportes.com.br"
@@ -23,8 +24,15 @@ def main():
     for indice, linha in df.iterrows():
         matricula = str(linha["MATRICULA"]).strip()
         nome = str(linha["NOME DO AUTOR"]).strip()
+        admissao = linha["ADMISSAO"]
+        demissao = linha["DEMISSAO"]
 
-        print(f"Buscando linha {indice}:{matricula} -   {nome}")
+        periodo = calcular_periodo_relatorios(admissao, demissao)
+
+        print(f"Meses até a demissão: {periodo['meses_ate_demissao']}")
+        print(f"Quantidade de relatórios: {periodo['quantidade_relatorios']}")
+        print(f"Primeira competência: {periodo['competencias'][0]}")
+        print(f"Última competência: {periodo['competencias'][-1]}")
 
         buscar_empregado(navegador, matricula)
 
