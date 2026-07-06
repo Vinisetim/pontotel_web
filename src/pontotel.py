@@ -30,6 +30,7 @@ def preencher_email(navegador, email):
 
     botao_proximo.click()
 
+
 def preencher_senha_entrar(navegador, senha):
     """Preenche o campo senha do pontotel e em seguida clica em entrar"""
 
@@ -61,3 +62,14 @@ def clicar_folha(navegador):
         )
     )
     card_folha.click()
+
+    aba_empregados = wait.until(
+        EC.element_to_be_clickable(
+            (
+                By.XPATH,
+                "//a[normalize-space() = 'empregados']/ancestor::li"
+            )
+        )
+    )
+
+    aba_empregados.click()
