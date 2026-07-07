@@ -8,6 +8,10 @@ PASTA_ENTRADA = PROJECT_ROOT / "entrada"
 PASTA_OUTPUT = PROJECT_ROOT / "output"
 PASTA_PROCESSAMENTO = PROJECT_ROOT / "processamento"
 PASTA_LOGS = PROJECT_ROOT / "logs"
+PASTA_SHAREPOINT_ARQUIVO = Path(
+    r"C:\CAMINHO\DA\PASTA\Arquivo"
+)
+
 
 #caminho do arquivo da planilha
 CAMINHO_PLANILHA_CONTROLE = PASTA_ENTRADA / "controle.xlsx"

@@ -6,6 +6,7 @@ COLUNAS_OBRIGATORIAS =[
     "NOME DO AUTOR",
     "ADMISSAO",
     "DEMISSAO",
+    "LOCAL",
 ]
 
 def ler_planilha():
