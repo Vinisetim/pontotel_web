@@ -228,5 +228,59 @@ def voltar_meses(navegador, quantidade_meses):
 
         time.sleep(1)
 
-        
 
+def gerar_relatorio_mes_atual(navegador):
+    """Gerar relatórios do mes atualmente selecionado no pontotel"""
+
+    wait = WebDriverWait(navegador, TEMPO_ESPERA_PADRAO)
+
+    botao_gerar_folha = wait.until(
+        EC.element_to_be_clickable(
+            (
+                By.XPATH,
+                "//*[@aria-label='gerar folha/espelho de ponto']"
+        )
+    )
+)
+
+    botao_gerar_folha.click()
+
+    botao_gerar = wait.until(
+        EC.element_to_be_clickable(
+            (
+                By.XPATH,
+                "//button[.//span[normalize-space()='Gerar']]"
+
+            )
+        )
+    )
+
+    botao_gerar.click()
+
+    botao_ok = wait.until(
+        EC.element_to_be_clickable(
+            (
+                By.XPATH,
+                "//button[normalize-space()='OK']"
+            )
+        )
+    )
+
+    botao_ok.click()
+
+def gerar_relatorios_periodo(navegador, competencias):
+    """Gera relatórios mes a mes, partindo do mes de demissao até o mes de admissao"""
+    total_competencias = len(competencias)
+
+    for indice, competencia in enumerate(competencias):
+        print(f"Gerando relatório da competencia: {competencia} ({indice + 1}/{total_competencias})")
+
+        gerar_relatorio_mes_atual(navegador)
+
+        time.sleep(1)
+
+        ultima_competencia = indice == total_competencias - 1
+
+        if not ultima_competencia:
+            voltar_meses(navegador, 1)
+            time.sleep(1)

@@ -6,7 +6,8 @@ from src.pontotel import (acessar_login,
                           clicar_folha,
                           buscar_empregado,
                           calcular_periodo_relatorios,
-                          voltar_meses)
+                          voltar_meses,
+                          gerar_relatorios_periodo)
 
 def main():
     email = "denise.soares@jtptransportes.com.br"
@@ -37,7 +38,8 @@ def main():
         buscar_empregado(navegador, matricula)
 
         voltar_meses(navegador, periodo['meses_ate_demissao'])
-        voltar_meses(navegador, periodo["quantidade_relatorios"])
+        gerar_relatorios_periodo(navegador, periodo['competencias'])
+
         input("Pressione ENTER para sair")
 
     navegador.quit()
