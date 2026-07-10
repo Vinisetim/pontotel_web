@@ -116,10 +116,10 @@ def extrair_zip(caminho_zip):
 def localizar_pdf_extraido(pasta_extraida):
     """Localiza o PDF extraido do ZIP"""
 
-    arquivos_pdf = list(Path(pasta_extraida).glob("*.pdf"))
+    arquivos_pdf = list(Path(pasta_extraida).rglob("*.pdf"))
 
     if not arquivos_pdf:
-        raise FileNotFoundError(f"Nenhum arquivo PDF dentro do zip")
+        raise FileNotFoundError("Nenhum arquivo PDF dentro do zip")
 
     if len(arquivos_pdf) > 1:
         raise ValueError("Mais de 1 PDF encontrado dentro do zip")
@@ -318,13 +318,24 @@ def mover_pdf_para_pasta_espelho(caminho_pdf, pasta_espelho, matricula, nome, co
     matricula_normalizada = normalzar_nome_arquivo(matricula)
     nome_normalizado = normalzar_nome_arquivo(nome)
 
-    nome_arquivo_final = f"{matricula_normalizada}-{nome_normalizado}-{competencia}.pdf"
+    nome_arquivo_final = f"{matricula_normalizada}-{competencia}.pdf"
 
     caminho_final = pasta_espelho / nome_arquivo_final
+
+    print(f"PDF origem: {caminho_pdf}")
+    print(f"PDF origem existe? {caminho_pdf.exists()}")
+
+    print(f"Pasta espelho: {pasta_espelho}")
+    print(f"Pasta espelho existe? {pasta_espelho.exists()}")
+
+    print(f"Caminho final: {caminho_final}")
+    print(f"Pasta destino existe? {caminho_final.parent.exists()}")
 
     if caminho_final.exists():
         raise FileExistsError(f"O arquivo final já existe: {caminho_final}")
 
+    print(f"Tamanho caminho origem: {len(str(caminho_pdf))}")
+    print(f"Tamanho caminho final: {len(str(caminho_final))}")
     shutil.move(str(caminho_pdf), str(caminho_final))
 
     return caminho_final

@@ -1,50 +1,66 @@
 from src.browser import criar_navegador
 from src.controle import validar_colunas, ler_planilha
-from src.arquivo import processar_zip_relatorio
-from src.pontotel import (acessar_login,
-                          preencher_email,
-                          preencher_senha_entrar,
-                          clicar_folha,
-                          buscar_empregado,
-                          calcular_periodo_relatorios,
-                          voltar_meses,
-                          gerar_relatorios_periodo)
+from src.pontotel import (
+    acessar_login,
+    preencher_email,
+    preencher_senha_entrar,
+    clicar_folha,
+    buscar_empregado,
+    calcular_periodo_relatorios,
+    voltar_meses,
+    gerar_relatorio_mes_atual,
+)
+from src.arquivo import (
+    obter_arquivos_atuais_download,
+    esperar_novo_zip,
+    processar_zip_relatorio,
+)
 
-def main():
+
+def processar_linha(linha, indice):
+    """
+    Processa uma única linha da planilha.
+
+    Para cada linha:
+    - abre um navegador novo;
+    - faz login;
+    - busca o colaborador;
+    - gera todos os relatórios do período;
+    - processa os ZIPs;
+    - move os PDFs finais;
+    - fecha o navegador.
+    """
+
     email = "denise.soares@jtptransportes.com.br"
     senha = "Denny3129@"
 
-    df = ler_planilha()
-    validar_colunas(df)
+    matricula = str(linha["MATRICULA"]).strip()
+    nome = str(linha["NOME DO AUTOR"]).strip()
+    admissao = linha["ADMISSAO"]
+    demissao = linha["DEMISSAO"]
+    local = str(linha["LOCAL"]).strip()
+    status = str(linha["STATUS"]).strip()
+
+    print("=" * 80)
+    print(f"Iniciando linha {indice}")
+    print(f"Matrícula: {matricula}")
+    print(f"Nome: {nome}")
+    print(f"Local: {local}")
+    print(f"Status: {status}")
+    print("=" * 80)
 
     navegador = criar_navegador()
 
-    acessar_login(navegador)
-    preencher_email(navegador, email)
-    preencher_senha_entrar(navegador, senha)
-    clicar_folha(navegador)
+    try:
+        acessar_login(navegador)
+        preencher_email(navegador, email)
+        preencher_senha_entrar(navegador, senha)
+        clicar_folha(navegador)
 
-    for indice, linha in df.iterrows():
-        local = str(linha["LOCAL"]).strip()
-        status = str(linha["STATUS"]).strip()
-        matricula = str(linha["MATRICULA"]).strip()
-
-        caminho_base = montar_caminho_base_status(local, status)
-
-        print(f"Caminho base montado: {caminho_base}")
-        print(f"Existe? {caminho_base.exists()}")
-
-        pasta_colaborador = localizar_pasta_colaborador(caminho_base, matricula)
-
-        print(f"Pasta do colaborador encontrada: {pasta_colaborador}")
-
-
-
-        matricula = str(linha["MATRICULA"]).strip()
-        nome = str(linha["NOME DO AUTOR"]).strip()
-        admissao = linha["ADMISSAO"]
-        demissao = linha["DEMISSAO"]
-        periodo = calcular_periodo_relatorios(admissao, demissao)
+        periodo = calcular_periodo_relatorios(
+            admissao=admissao,
+            demissao=demissao,
+        )
 
         print(f"Meses até a demissão: {periodo['meses_ate_demissao']}")
         print(f"Quantidade de relatórios: {periodo['quantidade_relatorios']}")
@@ -53,13 +69,61 @@ def main():
 
         buscar_empregado(navegador, matricula)
 
-        voltar_meses(navegador, periodo['meses_ate_demissao'])
-        gerar_relatorios_periodo(navegador, periodo['competencias'])
+        voltar_meses(
+            navegador=navegador,
+            quantidade_meses=periodo["meses_ate_demissao"],
+        )
 
-        input("Pressione ENTER para sair")
+        competencias = periodo["competencias"]
+        total_competencias = len(competencias)
 
-    navegador.quit()
+        for posicao, competencia in enumerate(competencias):
+            print("-" * 80)
+            print(f"Gerando competência {competencia} ({posicao + 1}/{total_competencias})")
+
+            arquivos_antes = obter_arquivos_atuais_download()
+
+            gerar_relatorio_mes_atual(navegador)
+
+            caminho_zip = esperar_novo_zip(arquivos_antes)
+
+            print(f"ZIP baixado: {caminho_zip}")
+
+            caminho_pdf_final = processar_zip_relatorio(
+                caminho_zip=caminho_zip,
+                matricula=matricula,
+                nome=nome,
+                competencia=competencia,
+                local=local,
+                status=status,
+            )
+
+            print(f"PDF final salvo em: {caminho_pdf_final}")
+
+            eh_ultima_competencia = posicao == total_competencias - 1
+
+            if not eh_ultima_competencia:
+                voltar_meses(navegador, 1)
+
+        print(f"Linha {indice} finalizada com sucesso.")
+
+    finally:
+        navegador.quit()
+        print(f"Navegador fechado para a linha {indice}.")
+
+
+def main():
+    df = ler_planilha()
+
+    validar_colunas(df)
+
+    print(f"Quantidade de linhas na planilha: {len(df)}")
+
+    for indice, linha in df.iterrows():
+        processar_linha(linha, indice)
+
+    print("Processamento finalizado.")
+
 
 if __name__ == "__main__":
     main()
-
