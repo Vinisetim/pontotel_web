@@ -127,3 +127,241 @@ def localizar_pdf_extraido(pasta_extraida):
     return arquivos_pdf[0]
 
 
+def interpretar_local(local):
+    """
+    Interpreta o valor da coluna LOCAL da planilha.
+
+    Exemplos:
+    COM | Embu das Artes      -> negocio = Coletivo, unidade = Embu das Artes
+    ESCOLAR | Embu das Artes  -> negocio = Escolar, unidade = Embu das Artes
+    """
+
+    local = str(local).strip()
+
+    if "|" not in local:
+        raise ValueError(
+            f"Valor inválido na coluna LOCAL. Esperado formato 'TIPO | UNIDADE': {local}"
+        )
+
+    tipo, unidade = local.split("|", 1)
+
+    tipo = tipo.strip().upper()
+    unidade = unidade.strip()
+
+    if "COM" in tipo:
+        negocio = "Coletivo"
+    else:
+        negocio = "Escolar"
+
+    return negocio, unidade
+
+
+def interpretar_status(status):
+    """
+    Interpreta o valor da coluna STATUS da planilha.
+
+    Ativo      -> 1_Ativos
+    Desligado  -> 2_Desligados
+
+    A pasta 3_Processos existe, mas não será usada neste contexto.
+    """
+
+    status = str(status).strip().upper()
+
+    if status == "ATIVO":
+        return "1_Ativos"
+
+    if status == "DESLIGADO":
+        return "2_Desligados"
+
+    raise ValueError(
+        f"Status inválido: {status}. Esperado 'Ativo' ou 'Desligado'."
+    )
+
+
+MAPA_PASTAS_UNIDADE = {
+    "Coletivo": {
+        "EMBU DAS ARTES": "Embu_das_Artes_Coletivo",
+        "PORTO VELHO": "Porto_Velho",
+        "BRAGANCA PAULISTA": "Braganca_Paulista_Coletivo",
+        "BRAGANÇA PAULISTA": "Braganca_Paulista_Coletivo",
+    },
+    "Escolar": {
+        "BARUERI": "Barueri",
+        "BRAGANCA PAULISTA": "Braganca_Paulista_Escolar",
+        "BRAGANÇA PAULISTA": "Braganca_Paulista_Escolar",
+        "EMBU DAS ARTES": "Embu_das_Artes_Escolar",
+        "EMBU GUACU": "Embu_Guaçu",
+        "EMBU GUAÇU": "Embu_Guaçu",
+        "ITAPECERICA DA SERRA": "Itapecerica_da_Serra",
+        "OSASCO": "Osasco",
+    }
+}
+
+
+def normalizar_chave_mapa(texto):
+    """
+    Normaliza um texto para ser usado como chave no mapa de unidades.
+    """
+
+    texto = str(texto).strip().upper()
+
+    texto = unicodedata.normalize("NFKD", texto)
+    texto = texto.encode("ASCII", "ignore").decode("ASCII")
+
+    texto = re.sub(r"\s+", " ", texto)
+
+    return texto.strip()
+
+
+def obter_nome_pasta_unidade(negocio, unidade):
+    """
+    Retorna o nome real da pasta da unidade dentro do SharePoint sincronizado.
+    """
+
+    chave_unidade = normalizar_chave_mapa(unidade)
+
+    mapa_negocio = MAPA_PASTAS_UNIDADE.get(negocio)
+
+    if not mapa_negocio:
+        raise ValueError(f"Negócio não mapeado: {negocio}")
+
+    nome_pasta = mapa_negocio.get(chave_unidade)
+
+    if not nome_pasta:
+        raise ValueError(
+            f"Unidade não mapeada para o negócio {negocio}: {unidade}"
+        )
+
+    return nome_pasta
+
+def montar_caminho_base_status(local, status):
+    """
+    Monta o caminho base até a pasta de status.
+
+    Estrutura:
+    PASTA_SHAREPOINT_ARQUIVO / negocio / pasta_unidade / pasta_status
+    """
+
+    negocio, unidade = interpretar_local(local)
+
+    nome_pasta_unidade = obter_nome_pasta_unidade(
+        negocio=negocio,
+        unidade=unidade,
+    )
+
+    pasta_status = interpretar_status(status)
+
+    caminho_base = (
+        PASTA_SHAREPOINT_ARQUIVO
+        / negocio
+        / nome_pasta_unidade
+        / pasta_status
+    )
+
+    return caminho_base
+
+def localizar_pasta_colaborador(caminho_base_status, matricula):
+    """
+    Localiza a pasta do colaborador dentro da pasta de status.
+
+    A busca usa o padrão:
+    00[matricula]*
+
+    Exemplo:
+    matricula = 1428
+    padrão = 001428*
+    """
+
+    matricula = str(matricula).strip()
+
+    padrao_busca = f"00{matricula}*"
+
+    pastas_encontradas = [
+        caminho
+        for caminho in caminho_base_status.glob(padrao_busca)
+        if caminho.is_dir()
+    ]
+
+    if not pastas_encontradas:
+        raise FileNotFoundError(
+            f"Nenhuma pasta encontrada para a matrícula {matricula} em {caminho_base_status}"
+        )
+
+    if len(pastas_encontradas) > 1:
+        raise ValueError(
+            f"Mais de uma pasta encontrada para a matrícula {matricula}: {pastas_encontradas}"
+        )
+
+    return pastas_encontradas[0]
+
+def obter_pasta_espelho_ponto(pasta_colaborador):
+    """
+    Cria ou retorna a pasta 'Espelho de Ponto Pontotel'
+    dentro da pasta do colaborador.
+    """
+
+    pasta_espelho = pasta_colaborador / "Espelho de Ponto Pontotel"
+
+    pasta_espelho.mkdir(parents=True, exist_ok=True)
+
+    return pasta_espelho
+
+def mover_pdf_para_pasta_espelho(caminho_pdf, pasta_espelho, matricula, nome, competencia):
+    """
+    Renomeia e move o PDF extraído para a pasta Espelho de Ponto Pontotel.
+
+    Padrão do arquivo final:
+    [matricula]-[nome]-[competencia].pdf
+    """
+
+    matricula_normalizada = normalzar_nome_arquivo(matricula)
+    nome_normalizado = normalzar_nome_arquivo(nome)
+
+    nome_arquivo_final = f"{matricula_normalizada}-{nome_normalizado}-{competencia}.pdf"
+
+    caminho_final = pasta_espelho / nome_arquivo_final
+
+    if caminho_final.exists():
+        raise FileExistsError(f"O arquivo final já existe: {caminho_final}")
+
+    shutil.move(str(caminho_pdf), str(caminho_final))
+
+    return caminho_final
+
+def processar_zip_relatorio(caminho_zip, matricula, nome, competencia, local, status):
+    """
+    Processa o ZIP baixado do PontoTel e move o PDF final para a pasta correta.
+    """
+
+    caminho_base_status = montar_caminho_base_status(
+        local=local,
+        status=status
+    )
+
+    pasta_colaborador = localizar_pasta_colaborador(
+        caminho_base_status=caminho_base_status,
+        matricula=matricula
+    )
+
+    pasta_espelho = obter_pasta_espelho_ponto(
+        pasta_colaborador=pasta_colaborador
+    )
+
+    pasta_extraida = extrair_zip(
+        caminho_zip=caminho_zip
+    )
+
+    caminho_pdf = localizar_pdf_extraido(
+        pasta_extraida=pasta_extraida
+    )
+
+    caminho_final = mover_pdf_para_pasta_espelho(
+        caminho_pdf=caminho_pdf,
+        pasta_espelho=pasta_espelho,
+        matricula=matricula,
+        nome=nome,
+        competencia=competencia
+    )
+
+    return caminho_final

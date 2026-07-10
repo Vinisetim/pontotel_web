@@ -1,5 +1,6 @@
 from src.browser import criar_navegador
 from src.controle import validar_colunas, ler_planilha
+from src.arquivo import processar_zip_relatorio
 from src.pontotel import (acessar_login,
                           preencher_email,
                           preencher_senha_entrar,
@@ -24,6 +25,21 @@ def main():
     clicar_folha(navegador)
 
     for indice, linha in df.iterrows():
+        local = str(linha["LOCAL"]).strip()
+        status = str(linha["STATUS"]).strip()
+        matricula = str(linha["MATRICULA"]).strip()
+
+        caminho_base = montar_caminho_base_status(local, status)
+
+        print(f"Caminho base montado: {caminho_base}")
+        print(f"Existe? {caminho_base.exists()}")
+
+        pasta_colaborador = localizar_pasta_colaborador(caminho_base, matricula)
+
+        print(f"Pasta do colaborador encontrada: {pasta_colaborador}")
+
+
+
         matricula = str(linha["MATRICULA"]).strip()
         nome = str(linha["NOME DO AUTOR"]).strip()
         admissao = linha["ADMISSAO"]
