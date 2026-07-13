@@ -1,5 +1,11 @@
 from src.browser import criar_navegador
-from src.controle import validar_colunas, ler_planilha
+from src.controle import (
+    ler_planilha_controle,
+    validar_colunas_obrigatorias,
+    linha_ja_processada,
+    marcar_linha_como_processada,
+    salvar_planilha_controle,
+)
 from src.pontotel import (
     acessar_login,
     preencher_email,
@@ -9,6 +15,7 @@ from src.pontotel import (
     calcular_periodo_relatorios,
     voltar_meses,
     gerar_relatorio_mes_atual,
+    baixar_relatorio_competencia
 )
 from src.arquivo import (
     obter_arquivos_atuais_download,
@@ -33,6 +40,7 @@ def processar_linha(linha, indice):
 
     email = "denise.soares@jtptransportes.com.br"
     senha = "Denny3129@"
+
 
     matricula = str(linha["MATRICULA"]).strip()
     nome = str(linha["NOME DO AUTOR"]).strip()
@@ -85,9 +93,11 @@ def processar_linha(linha, indice):
 
             gerar_relatorio_mes_atual(navegador)
 
-            caminho_zip = esperar_novo_zip(arquivos_antes)
-
-            print(f"ZIP baixado: {caminho_zip}")
+            caminho_zip = baixar_relatorio_competencia(
+                navegador=navegador,
+                posicao=posicao,
+                arquivos_antes=arquivos_antes
+            )
 
             caminho_pdf_final = processar_zip_relatorio(
                 caminho_zip=caminho_zip,
@@ -95,7 +105,7 @@ def processar_linha(linha, indice):
                 nome=nome,
                 competencia=competencia,
                 local=local,
-                status=status,
+                status=status
             )
 
             print(f"PDF final salvo em: {caminho_pdf_final}")
@@ -111,19 +121,38 @@ def processar_linha(linha, indice):
         navegador.quit()
         print(f"Navegador fechado para a linha {indice}.")
 
-
 def main():
-    df = ler_planilha()
+    df = ler_planilha_controle()
 
-    validar_colunas(df)
+    validar_colunas_obrigatorias(df)
 
-    print(f"Quantidade de linhas na planilha: {len(df)}")
+    print(f"Quantidade total de linhas na planilha: {len(df)}")
 
     for indice, linha in df.iterrows():
-        processar_linha(linha, indice)
+
+        if linha_ja_processada(linha):
+            print(f"Linha {indice} já está marcada como processada. Pulando.")
+            continue
+
+        try:
+            processar_linha(linha, indice)
+
+            marcar_linha_como_processada(df, indice)
+
+            salvar_planilha_controle(df)
+
+            print(f"Linha {indice} marcada como processada na planilha.")
+
+        except Exception as erro:
+            print("=" * 80)
+            print(f"Erro ao processar linha {indice}.")
+            print(f"Erro: {erro}")
+            print("A linha NÃO será marcada como processada.")
+            print("=" * 80)
 
     print("Processamento finalizado.")
 
 
 if __name__ == "__main__":
     main()
+

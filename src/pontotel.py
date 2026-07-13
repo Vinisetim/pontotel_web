@@ -5,6 +5,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
+from src.arquivo import esperar_novo_zip
 
 from src.config import URL_PONTOTEL, TEMPO_ESPERA_PADRAO
 
@@ -284,3 +285,96 @@ def gerar_relatorios_periodo(navegador, competencias):
         if not ultima_competencia:
             voltar_meses(navegador, 1)
             time.sleep(1)
+
+
+def baixar_relatorio_competencia(
+    navegador,
+    posicao,
+    arquivos_antes
+):
+    """
+    Abre a gaveta, inicia o download quando necessário,
+    espera o ZIP terminar e fecha a gaveta.
+
+    Regras:
+    - posição 0: abrir a gaveta inicia o download automático;
+    - posição maior que 0: é necessário clicar no botão de download;
+    - a gaveta só fecha depois que o ZIP terminar de baixar.
+    """
+
+    wait = WebDriverWait(
+        navegador,
+        TEMPO_ESPERA_PADRAO
+    )
+
+    print("Abrindo gaveta de relatórios...")
+
+    botao_gaveta = wait.until(
+        EC.element_to_be_clickable(
+            (
+                By.XPATH,
+                "//li[@id='secao-alertas']//button"
+            )
+        )
+    )
+
+    navegador.execute_script(
+        "arguments[0].click();",
+        botao_gaveta
+    )
+
+    print("Aguardando relatório ficar disponível...")
+
+    botao_download = wait.until(
+        EC.element_to_be_clickable(
+            (
+                By.XPATH,
+                "(//*[contains(@aria-label, 'Baixar relatório')])[1]"
+            )
+        )
+    )
+
+    print("Relatório mais recente disponível.")
+
+    if posicao == 0:
+        print(
+            "Primeira competência: "
+            "aguardando download automático."
+        )
+
+    else:
+        print(
+            "Clicando no download do relatório mais recente..."
+        )
+
+        navegador.execute_script(
+            "arguments[0].click();",
+            botao_download
+        )
+
+        print("Clique no download executado.")
+
+    caminho_zip = esperar_novo_zip(arquivos_antes)
+
+    print(f"ZIP concluído: {caminho_zip}")
+    print("Fechando gaveta...")
+
+    botao_fechar = wait.until(
+        EC.presence_of_element_located(
+            (
+                By.CSS_SELECTOR,
+                "button[aria-label='Fechar gaveta']"
+            )
+        )
+    )
+
+    navegador.execute_script(
+        "arguments[0].click();",
+        botao_fechar
+    )
+
+    time.sleep(1)
+
+    print("Clique para fechar a gaveta executado.")
+
+    return caminho_zip
