@@ -5,6 +5,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
+
+from config import TEMPO_ESPERA_DOWNLOAD
 from src.arquivo import esperar_novo_zip
 
 from src.config import URL_PONTOTEL, TEMPO_ESPERA_PADRAO
@@ -286,95 +288,465 @@ def gerar_relatorios_periodo(navegador, competencias):
             voltar_meses(navegador, 1)
             time.sleep(1)
 
+def formatar_competencia_para_relatorio(competencia):
+    """
+    Converte uma competência*no formato AAAA-MM
+    para o form*to MM/AAAA usado pelo aria-label.
+    Exemplo:
+        2025-10 -> 10/2025
+    """
+
+    ano, mes = competencia.split("-")
+    competencia_formatada = f"{int(mes)}/{ano}"
+    return competencia_formatada
 
 def baixar_relatorio_competencia(
     navegador,
     posicao,
+    competencia,
     arquivos_antes
 ):
     """
-    Abre a gaveta, inicia o download quando necessário,
-    espera o ZIP terminar e fecha a gaveta.
+    Abre a gaveta lateral de relatórios, espera a notificação verde
+    de relatório concluído aparecer e baixa o relatório mais recente.
 
-    Regras:
-    - posição 0: abrir a gaveta inicia o download automático;
-    - posição maior que 0: é necessário clicar no botão de download;
-    - a gaveta só fecha depois que o ZIP terminar de baixar.
+    Estratégia:
+    - a gaveta lateral precisa estar aberta para a notificação aparecer;
+    - a notificação verde é usada apenas como gatilho;
+    - a automação não clica nem interage com a notificação;
+    - posição 0: mantém o comportamento de download automático;
+    - posição maior que 0: clica no primeiro botão de download da lista;
+    - não busca mais por competência no aria-label;
+    - não depende mais de 9/2025 versus 09/2025;
+    - falha ao fechar a gaveta não encerra o processamento.
     """
 
-    wait = WebDriverWait(
-        navegador,
-        TEMPO_ESPERA_PADRAO
+    from selenium.common.exceptions import (
+        StaleElementReferenceException,
+        NoSuchElementException,
+        TimeoutException,
     )
+
+    wait_padrao = WebDriverWait(
+        navegador,
+        TEMPO_ESPERA_PADRAO,
+        poll_frequency=0.5,
+        ignored_exceptions=(
+            StaleElementReferenceException,
+            NoSuchElementException,
+        ),
+    )
+
+    wait_relatorio = WebDriverWait(
+        navegador,
+        120,
+        poll_frequency=0.5,
+        ignored_exceptions=(
+            StaleElementReferenceException,
+            NoSuchElementException,
+        ),
+    )
+
+    wait_fechar = WebDriverWait(
+        navegador,
+        10,
+        poll_frequency=0.5,
+        ignored_exceptions=(
+            StaleElementReferenceException,
+            NoSuchElementException,
+        ),
+    )
+
+    xpath_gaveta = (
+        "//li[@id='secao-alertas']//button"
+    )
+
+    xpath_downloads = (
+        "//*[contains(@aria-label, 'Baixar relatório')]"
+    )
+
+    seletor_notificacao_sucesso = (
+        "#ptt-notifications .alert-success[role='alert'] strong"
+    )
+
+    seletor_fechar = (
+        "button[aria-label='Fechar gaveta']"
+    )
+
+    # ---------------------------------------------------------
+    # 1. Abre a gaveta lateral de relatórios
+    # ---------------------------------------------------------
 
     print("Abrindo gaveta de relatórios...")
 
-    botao_gaveta = wait.until(
-        EC.element_to_be_clickable(
-            (
+    def abrir_gaveta(driver):
+        try:
+            botao_gaveta = driver.find_element(
                 By.XPATH,
-                "//li[@id='secao-alertas']//button"
+                xpath_gaveta
             )
-        )
-    )
 
-    navegador.execute_script(
-        "arguments[0].click();",
-        botao_gaveta
-    )
+            if not (
+                botao_gaveta.is_displayed()
+                and botao_gaveta.is_enabled()
+            ):
+                return False
 
-    print("Aguardando relatório ficar disponível...")
-
-    botao_download = wait.until(
-        EC.element_to_be_clickable(
-            (
-                By.XPATH,
-                "(//*[contains(@aria-label, 'Baixar relatório')])[1]"
+            driver.execute_script(
+                "arguments[0].click();",
+                botao_gaveta
             )
-        )
+
+            return True
+
+        except (
+            StaleElementReferenceException,
+            NoSuchElementException,
+        ):
+            return False
+
+    wait_padrao.until(
+        abrir_gaveta
     )
 
-    print("Relatório mais recente disponível.")
+    print("Gaveta de relatórios aberta.")
+
+    # ---------------------------------------------------------
+    # 2. Espera a notificação verde aparecer
+    # ---------------------------------------------------------
+
+    print(
+        "Aguardando notificação verde de relatório concluído..."
+    )
+
+    def notificacao_relatorio_concluido(driver):
+        try:
+            notificacoes = driver.find_elements(
+                By.CSS_SELECTOR,
+                seletor_notificacao_sucesso
+            )
+
+            for notificacao in notificacoes:
+                try:
+                    if not notificacao.is_displayed():
+                        continue
+
+                    texto = notificacao.text.strip()
+
+                    if not texto:
+                        continue
+
+                    print(
+                        "Notificação de conclusão encontrada:",
+                        texto
+                    )
+
+                    return True
+
+                except StaleElementReferenceException:
+                    continue
+
+            return False
+
+        except StaleElementReferenceException:
+            return False
+
+    try:
+        wait_relatorio.until(
+            notificacao_relatorio_concluido
+        )
+
+    except TimeoutException as erro:
+        raise TimeoutException(
+            "A notificação verde de relatório concluído não apareceu "
+            "dentro do tempo esperado."
+        ) from erro
+
+    print(
+        "Notificação verde detectada. O relatório foi concluído."
+    )
+
+    # ---------------------------------------------------------
+    # 3. Download
+    # ---------------------------------------------------------
+
+    # ---------------------------------------------------------
+    # 3. Download
+    # ---------------------------------------------------------
 
     if posicao == 0:
         print(
-            "Primeira competência: "
-            "aguardando download automático."
+            "Primeira competência: mantendo comportamento de "
+            "download automático após abertura da gaveta."
         )
 
     else:
         print(
-            "Clicando no download do relatório mais recente..."
+            "Buscando o primeiro relatório da lista de concluídos "
+            "usando a lógica antiga..."
         )
 
-        navegador.execute_script(
-            "arguments[0].click();",
-            botao_download
+        xpath_primeiro_relatorio = (
+            "(//div["
+            "contains("
+            "concat(' ', normalize-space(@class), ' '), "
+            "' relatorio '"
+            ")"
+            "])[1]"
         )
 
-        print("Clique no download executado.")
+        def obter_download_primeiro_relatorio(driver):
+            """
+            Usa a lógica antiga:
+            1. localiza a primeira linha de relatório da gaveta;
+            2. faz hover na primeira linha;
+            3. procura o botão de download dentro dessa linha;
+            4. retorna o botão encontrado.
 
-    caminho_zip = esperar_novo_zip(arquivos_antes)
+            Como o Pontotel coloca o relatório mais recente no topo
+            da lista de concluídos, a primeira linha é o item correto.
+            """
+
+            try:
+                primeiro_relatorio = driver.find_element(
+                    By.XPATH,
+                    xpath_primeiro_relatorio
+                )
+
+                ActionChains(driver) \
+                    .move_to_element(primeiro_relatorio) \
+                    .pause(0.5) \
+                    .perform()
+
+                botoes_download = primeiro_relatorio.find_elements(
+                    By.XPATH,
+                    ".//*[contains(@aria-label, 'Baixar relatório')]"
+                )
+
+                print(
+                    "Quantidade de botões de download na primeira linha:",
+                    len(botoes_download)
+                )
+
+                if not botoes_download:
+                    return False
+
+                for indice, botao_download in enumerate(botoes_download):
+                    try:
+                        aria_label = botao_download.get_attribute(
+                            "aria-label"
+                        )
+
+                        print(
+                            f"Botão candidato {indice}:",
+                            aria_label
+                        )
+
+                        if not aria_label:
+                            continue
+
+                        return botao_download
+
+                    except StaleElementReferenceException:
+                        continue
+
+                return False
+
+            except (
+                    StaleElementReferenceException,
+                    NoSuchElementException,
+            ):
+                return False
+
+        def clicar_download_primeiro_relatorio(driver):
+            try:
+                botao_download = obter_download_primeiro_relatorio(
+                    driver
+                )
+
+                if not botao_download:
+                    return False
+
+                # Rebusca antes do clique, porque o Pontotel pode reconstruir
+                # a linha ou o botão depois do hover.
+                botao_download = obter_download_primeiro_relatorio(
+                    driver
+                )
+
+                if not botao_download:
+                    return False
+
+                aria_label = botao_download.get_attribute(
+                    "aria-label"
+                )
+
+                print(
+                    "Baixando primeiro relatório da lista:",
+                    aria_label
+                )
+
+                driver.execute_script(
+                    "arguments[0].click();",
+                    botao_download
+                )
+
+                return True
+
+            except (
+                    StaleElementReferenceException,
+                    NoSuchElementException,
+            ):
+                return False
+
+        try:
+            WebDriverWait(
+                navegador,
+                TEMPO_ESPERA_DOWNLOAD,
+                poll_frequency=0.5,
+                ignored_exceptions=(
+                    StaleElementReferenceException,
+                    NoSuchElementException,
+                ),
+            ).until(
+                clicar_download_primeiro_relatorio
+            )
+
+        except TimeoutException as erro:
+            raise TimeoutException(
+                "Não foi possível clicar no download do primeiro "
+                "relatório da lista usando a lógica antiga."
+            ) from erro
+
+        print(
+            "Clique no download do primeiro relatório executado."
+        )
+    # ---------------------------------------------------------
+    # 4. Aguarda o ZIP
+    # ---------------------------------------------------------
+
+    print(
+        "Aguardando o arquivo ZIP terminar de baixar..."
+    )
+
+    caminho_zip = esperar_novo_zip(
+        arquivos_antes
+    )
 
     print(f"ZIP concluído: {caminho_zip}")
-    print("Fechando gaveta...")
 
-    botao_fechar = wait.until(
-        EC.presence_of_element_located(
-            (
-                By.CSS_SELECTOR,
-                "button[aria-label='Fechar gaveta']"
+    # ---------------------------------------------------------
+    # 5. Fecha a gaveta
+    # ---------------------------------------------------------
+
+    print("Tentando fechar a gaveta de relatórios...")
+
+    def clicar_botao_fechar_gaveta(driver):
+        """
+        Primeira tentativa:
+        procura o botão de fechar da gaveta.
+        """
+
+        seletores_possiveis = [
+            "button[aria-label='Fechar gaveta']",
+            "button[aria-label='Fechar']",
+            "button[aria-label='Close']",
+            "button.close",
+        ]
+
+        for seletor in seletores_possiveis:
+            try:
+                botoes = driver.find_elements(
+                    By.CSS_SELECTOR,
+                    seletor
+                )
+
+                for botao in botoes:
+                    try:
+                        if (
+                            botao.is_displayed()
+                            and botao.is_enabled()
+                        ):
+                            driver.execute_script(
+                                "arguments[0].click();",
+                                botao
+                            )
+
+                            print(
+                                "Gaveta fechada pelo botão:",
+                                seletor
+                            )
+
+                            return True
+
+                    except StaleElementReferenceException:
+                        continue
+
+            except StaleElementReferenceException:
+                continue
+
+        return False
+
+    def clicar_fora_da_gaveta(driver):
+        """
+        Segunda tentativa:
+        usa o comportamento antigo do seu código,
+        clicando em uma área fora da gaveta.
+        """
+
+        try:
+            elemento_fora_gaveta = driver.execute_script(
+                """
+                return document.elementFromPoint(
+                    Math.floor(window.innerWidth * 0.70),
+                    Math.floor(window.innerHeight * 0.50)
+                );
+                """
             )
+
+            if elemento_fora_gaveta is None:
+                return False
+
+            ActionChains(driver) \
+                .move_to_element(elemento_fora_gaveta) \
+                .click() \
+                .perform()
+
+            print(
+                "Clique fora da gaveta executado."
+            )
+
+            return True
+
+        except (
+            StaleElementReferenceException,
+            NoSuchElementException,
+        ):
+            return False
+
+    def fechar_gaveta(driver):
+        """
+        Tenta fechar a gaveta primeiro pelo botão.
+        Se não conseguir, tenta clicar fora dela.
+        """
+
+        if clicar_botao_fechar_gaveta(driver):
+            return True
+
+        return clicar_fora_da_gaveta(driver)
+
+    try:
+        wait_fechar.until(
+            fechar_gaveta
         )
-    )
 
-    navegador.execute_script(
-        "arguments[0].click();",
-        botao_fechar
-    )
+        print(
+            "Tentativa de fechamento da gaveta executada."
+        )
 
-    time.sleep(1)
-
-    print("Clique para fechar a gaveta executado.")
+    except TimeoutException:
+        print(
+            "Aviso: não foi possível fechar a gaveta. "
+            "O ZIP já foi baixado e o navegador continuará aberto."
+        )
 
     return caminho_zip

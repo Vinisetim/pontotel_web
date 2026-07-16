@@ -19,7 +19,6 @@ from src.pontotel import (
 )
 from src.arquivo import (
     obter_arquivos_atuais_download,
-    esperar_novo_zip,
     processar_zip_relatorio,
 )
 
@@ -95,8 +94,9 @@ def processar_linha(linha, indice):
 
             caminho_zip = baixar_relatorio_competencia(
                 navegador=navegador,
-                posicao=posicao,
-                arquivos_antes=arquivos_antes
+                posicao = posicao,
+                competencia = competencia,
+                arquivos_antes = arquivos_antes
             )
 
             caminho_pdf_final = processar_zip_relatorio(
