@@ -15,7 +15,9 @@ from src.pontotel import (
     calcular_periodo_relatorios,
     voltar_meses,
     gerar_relatorio_mes_atual,
-    baixar_relatorio_competencia
+    baixar_relatorio_competencia,
+buscar_empregados,
+entrar_empregados
 )
 from src.arquivo import (
     obter_arquivos_atuais_download,
@@ -62,7 +64,7 @@ def processar_linha(linha, indice):
         acessar_login(navegador)
         preencher_email(navegador, email)
         preencher_senha_entrar(navegador, senha)
-        clicar_folha(navegador)
+        entrar_empregados(navegador)
 
         periodo = calcular_periodo_relatorios(
             admissao=admissao,
@@ -74,7 +76,7 @@ def processar_linha(linha, indice):
         print(f"Primeira competência: {periodo['competencias'][0]}")
         print(f"Última competência: {periodo['competencias'][-1]}")
 
-        buscar_empregado(navegador, matricula)
+        buscar_empregados(navegador, matricula)
 
         voltar_meses(
             navegador=navegador,

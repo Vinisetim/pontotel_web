@@ -55,7 +55,160 @@ def preencher_senha_entrar(navegador, senha):
 
     botao_entrar.click()
 
-def clicar_folha(navegador):
+def entrar_empregados(navegador):
+    """
+    Acessa Cadastros > Empregados e abre o filtro
+    que inicialmente está configurado como 'somente ativos'.
+
+    Esta função ainda não seleciona a opção 'todos'.
+    """
+
+    wait = WebDriverWait(
+        navegador,
+        TEMPO_ESPERA_PADRAO
+    )
+
+    print("Abrindo a seção Cadastros...")
+
+    botao_cadastros = wait.until(
+        EC.element_to_be_clickable(
+            (
+                By.XPATH,
+                "//li[@id='secao-cadastro']//button"
+            )
+        )
+    )
+
+    botao_cadastros.click()
+
+    print("Seção Cadastros aberta.")
+    print("Acessando Empregados...")
+
+    link_empregados = wait.until(
+        EC.element_to_be_clickable(
+            (
+                By.XPATH,
+                "//li[@id='item-empregados']/a"
+            )
+        )
+    )
+
+    link_empregados.click()
+
+    print("Aguardando a página de empregados carregar...")
+    filtro_empregados = wait.until(
+        EC.element_to_be_clickable(
+            (
+                By.XPATH,
+                "//span[contains(@class, 'multiselect__single') "
+                "and normalize-space()='somente ativos']"
+            )
+        )
+    )
+
+    filtro_empregados.click()
+    print("Menu suspenso do filtro aberto.")
+
+    ActionChains(navegador) \
+        .send_keys(Keys.ARROW_DOWN) \
+        .send_keys(Keys.ENTER) \
+        .perform()
+
+    print("Opção 'todos' selecionada.")
+
+
+def buscar_empregados(navegador, matricula):
+    """
+    Busca o empregado na página Cadastros > Empregados,
+    abre o painel lateral do colaborador e clica no botão
+    verde de folha.
+
+    Pré-condição:
+    - a função entrar_empregados() já foi executada;
+    - o filtro da página já está configurado como "todos".
+    """
+
+    wait = WebDriverWait(
+        navegador,
+        TEMPO_ESPERA_PADRAO
+    )
+
+    matricula = str(matricula).strip()
+
+    print(f"Buscando empregado pela matrícula {matricula}...")
+
+    # Localiza o input da coluna "empregado".
+    campo_empregado = wait.until(
+        EC.element_to_be_clickable(
+            (
+                By.XPATH,
+                "//div[contains(@class, 'group') "
+                "and .//label[normalize-space()='empregado']]"
+                "//input"
+            )
+        )
+    )
+
+    campo_empregado.click()
+    campo_empregado.clear()
+    campo_empregado.send_keys(matricula)
+
+    print("Matrícula digitada. Aguardando o resultado carregar...")
+
+    # O title contém matrícula + nome.
+    # Exemplo: title="1428 Diego De Oliveira Mendonça"
+    linha_empregado = wait.until(
+        EC.element_to_be_clickable(
+            (
+                By.XPATH,
+                f"//span[@title and "
+                f"starts-with(normalize-space(@title), '{matricula} ')]"
+            )
+        )
+    )
+
+    print("Empregado encontrado. Abrindo o painel lateral...")
+
+    linha_empregado.click()
+
+    print("Painel lateral aberto. Localizando o botão de folha...")
+
+    botao_folha = wait.until(
+        EC.presence_of_element_located(
+            (
+                By.XPATH,
+                "//button[.//span[contains(@class, "
+                "'icone-chapado-folha')]]"
+            )
+        )
+    )
+
+    # O botão fica na parte inferior do painel.
+    # O scrollIntoView movimenta o painel rolável até o botão.
+    navegador.execute_script(
+        """
+        arguments[0].scrollIntoView({
+            behavior: 'instant',
+            block: 'center'
+        });
+        """,
+        botao_folha
+    )
+
+    time.sleep(1)
+
+    print("Clicando no botão verde de folha...")
+
+    navegador.execute_script(
+        "arguments[0].click();",
+        botao_folha
+    )
+
+    print("Botão de folha acionado.")
+
+
+
+def clicar_folha(navegador, matricula):
     """aguarda a tela inicial se carregar e clica no card com o texto 'folha de ponto'"""
 
     wait = WebDriverWait(navegador, TEMPO_ESPERA_PADRAO)
@@ -63,7 +216,7 @@ def clicar_folha(navegador):
     card_folha = wait.until(
         EC.element_to_be_clickable(
             (
-                By.XPATH, "//span[contains(normalize-space(), 'folha de pontos')]"
+                By.XPATH, "//div[normalize-space()='Cadastros']"
             )
         )
     )
@@ -73,12 +226,45 @@ def clicar_folha(navegador):
         EC.element_to_be_clickable(
             (
                 By.XPATH,
-                "//a[normalize-space() = 'empregados']/ancestor::li"
+                "// a[.// div[normalize-space() = 'Empregados']]"
             )
         )
     )
 
     aba_empregados.click()
+
+    span_mostrar = wait.until(
+        EC.element_to_be_clickable(
+            (
+                By.XPATH, "//span[contains(normalize-space(), 'somente ativos')]")
+        )
+    )
+
+    span_mostrar.click()
+
+
+    campo_ativo = navegador.switch_to.active_element
+
+    campo_ativo.send_keys(Keys.CONTROL, "a")
+    campo_ativo.send_keys(Keys.BACKSPACE)
+
+    campo_ativo.send_keys(matricula)
+    time.sleep(5)
+    wait.until(
+        EC.presence_of_element_located(
+            (
+                By.XPATH,
+                "//*[contains(normalize-space(), 'todos')]"
+            )
+        )
+    )
+
+    ActionChains(navegador)\
+        .send_keys(Keys.ARROW_DOWN)\
+        .send_keys(Keys.ENTER)\
+        .perform()
+
+
 
 def buscar_empregado(navegador, matricula):
     """

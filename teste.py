@@ -1,24 +1,17 @@
-from pathlib import Path
-
-from src.arquivo import processar_zip_relatorio
-
+from src.pontotel import (acessar_login,
+                          preencher_email,
+                          preencher_senha_entrar,
+                          entrar_empregados,
+                          buscar_empregados)
+from src.browser import criar_navegador
 
 def main():
-    caminho_zip = Path(
-        r"C:\Users\vinicius.gomes\Documents\pontotel-automacao\downloads_pontotel\r01-9-2024-wu2ydyevtm.zip"
-    )
-
-    caminho_final = processar_zip_relatorio(
-        caminho_zip=caminho_zip,
-        matricula="1428",
-        nome="DIEGO DE OLIVEIRA MENDONCA",
-        competencia="2024-10",
-        local="COM | Embu das Artes",
-        status="Desligado"
-    )
-
-    print(f"PDF movido para: {caminho_final}")
-
-
-if __name__ == "__main__":
+    navegador = criar_navegador()
+    acessar_login(navegador=navegador)
+    preencher_email(navegador,email="denise.soares@jtptransportes.com.br")
+    preencher_senha_entrar(navegador, senha="Denny3129@")
+    entrar_empregados(navegador)
+    buscar_empregados(navegador, matricula=1428)
+    input("pressione ENTER para sair")
+if __name__ == '__main__':
     main()
