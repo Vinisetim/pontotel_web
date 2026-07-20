@@ -80,7 +80,7 @@ def entrar_empregados(navegador):
     )
 
     botao_cadastros.click()
-
+    time.sleep(1)
     print("Seção Cadastros aberta.")
     print("Acessando Empregados...")
 
@@ -95,6 +95,7 @@ def entrar_empregados(navegador):
 
     link_empregados.click()
 
+    time.sleep(2)
     print("Aguardando a página de empregados carregar...")
     filtro_empregados = wait.until(
         EC.element_to_be_clickable(
@@ -115,7 +116,7 @@ def entrar_empregados(navegador):
         .perform()
 
     print("Opção 'todos' selecionada.")
-
+    time.sleep(5)
 
 def buscar_empregados(navegador, matricula):
     """
@@ -136,7 +137,7 @@ def buscar_empregados(navegador, matricula):
     matricula = str(matricula).strip()
 
     print(f"Buscando empregado pela matrícula {matricula}...")
-
+    time.sleep(2)
     # Localiza o input da coluna "empregado".
     campo_empregado = wait.until(
         EC.element_to_be_clickable(
@@ -154,7 +155,7 @@ def buscar_empregados(navegador, matricula):
     campo_empregado.send_keys(matricula)
 
     print("Matrícula digitada. Aguardando o resultado carregar...")
-
+    time.sleep(1)
     # O title contém matrícula + nome.
     # Exemplo: title="1428 Diego De Oliveira Mendonça"
     linha_empregado = wait.until(
@@ -170,7 +171,7 @@ def buscar_empregados(navegador, matricula):
     print("Empregado encontrado. Abrindo o painel lateral...")
 
     linha_empregado.click()
-
+    time.sleep(1)
     print("Painel lateral aberto. Localizando o botão de folha...")
 
     botao_folha = wait.until(
@@ -249,7 +250,7 @@ def clicar_folha(navegador, matricula):
     campo_ativo.send_keys(Keys.BACKSPACE)
 
     campo_ativo.send_keys(matricula)
-    time.sleep(5)
+    time.sleep(1)
     wait.until(
         EC.presence_of_element_located(
             (
