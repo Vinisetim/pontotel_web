@@ -1,4 +1,3 @@
-import os
 import re
 import time
 import shutil
@@ -9,7 +8,6 @@ from pathlib import Path
 from src.config import (
 PASTA_DOWNLOADS,
 PASTA_PROCESSAMENTO,
-PASTA_OUTPUT,
 TEMPO_ESPERA_DOWNLOAD,
 PASTA_SHAREPOINT_ARQUIVO,
 )

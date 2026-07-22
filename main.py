@@ -2,8 +2,10 @@ from src.browser import criar_navegador
 from src.controle import (
     ler_planilha_controle,
     validar_colunas_obrigatorias,
-    linha_ja_processada,
-    marcar_linha_como_processada,
+    linha_deve_ser_processada,
+    marcar_linha_em_andamento,
+    marcar_linha_como_concluida,
+    registrar_competencia_concluida,
     salvar_planilha_controle,
 )
 from src.pontotel import (
@@ -25,7 +27,7 @@ from src.arquivo import (
 )
 
 
-def processar_linha(linha, indice):
+def processar_linha(df, linha, indice):
     """
     Processa uma única linha da planilha.
 
@@ -109,6 +111,18 @@ def processar_linha(linha, indice):
                 local=local,
                 status=status
             )
+            registrar_competencia_concluida(
+                df=df,
+                indice=indice,
+                competencia=competencia
+            )
+
+            salvar_planilha_controle(df)
+
+            print(
+                f"Checkpoint salvo. "
+                f"Competência {competencia} concluída."
+            )
 
             print(f"PDF final salvo em: {caminho_pdf_final}")
 
@@ -132,24 +146,50 @@ def main():
 
     for indice, linha in df.iterrows():
 
-        if linha_ja_processada(linha):
-            print(f"Linha {indice} já está marcada como processada. Pulando.")
+        if not linha_deve_ser_processada(linha):
+            print(
+                f"Linha {indice} já está concluída. "
+                "Pulando para a próxima."
+            )
             continue
 
-        try:
-            processar_linha(linha, indice)
+        marcar_linha_em_andamento(
+            df=df,
+            indice=indice
+        )
 
-            marcar_linha_como_processada(df, indice)
+        salvar_planilha_controle(df)
+
+        print(
+            f"Linha {indice} marcada como EM ANDAMENTO."
+        )
+
+        try:
+            processar_linha(
+                linha=linha,
+                indice=indice,
+                df=df
+            )
+
+            marcar_linha_como_concluida(
+                df=df,
+                indice=indice
+            )
 
             salvar_planilha_controle(df)
 
-            print(f"Linha {indice} marcada como processada na planilha.")
+            print(
+                f"Linha {indice} marcada como CONCLUIDO."
+            )
 
         except Exception as erro:
             print("=" * 80)
             print(f"Erro ao processar linha {indice}.")
             print(f"Erro: {erro}")
-            print("A linha NÃO será marcada como processada.")
+            print(
+                "A linha permanecerá como EM ANDAMENTO "
+                "para ser retomada posteriormente."
+            )
             print("=" * 80)
 
     print("Processamento finalizado.")
