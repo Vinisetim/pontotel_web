@@ -135,7 +135,9 @@ def interpretar_local(local):
     """
 
     local = str(local).strip()
-
+    if local.upper() == "MATRIZ":
+        return "Matriz", None
+    
     if "|" not in local:
         raise ValueError(
             f"Valor inválido na coluna LOCAL. Esperado formato 'TIPO | UNIDADE': {local}"
