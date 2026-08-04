@@ -146,8 +146,12 @@ def interpretar_local(local):
     tipo = tipo.strip().upper()
     unidade = unidade.strip()
 
-    if "COM" in tipo:
+    if "MATRIZ" in tipo:
+        negocio = "Matriz"
+
+    elif "COM" in tipo:
         negocio = "Coletivo"
+
     else:
         negocio = "Escolar"
 
@@ -240,24 +244,30 @@ def montar_caminho_base_status(local, status):
     Estrutura:
     PASTA_SHAREPOINT_ARQUIVO / negocio / pasta_unidade / pasta_status
     """
-
     negocio, unidade = interpretar_local(local)
+
+    pasta_status = interpretar_status(status)
+
+    if negocio == "Matriz":
+
+        return (
+            PASTA_SHAREPOINT_ARQUIVO
+            / "Matriz"
+            / pasta_status
+        )
 
     nome_pasta_unidade = obter_nome_pasta_unidade(
         negocio=negocio,
         unidade=unidade,
     )
 
-    pasta_status = interpretar_status(status)
-
-    caminho_base = (
+    return (
         PASTA_SHAREPOINT_ARQUIVO
         / negocio
         / nome_pasta_unidade
         / pasta_status
     )
 
-    return caminho_base
 
 def localizar_pasta_colaborador(caminho_base_status, matricula):
     """
@@ -316,7 +326,7 @@ def mover_pdf_para_pasta_espelho(caminho_pdf, pasta_espelho, matricula, nome, co
     matricula_normalizada = normalzar_nome_arquivo(matricula)
     nome_normalizado = normalzar_nome_arquivo(nome)
 
-    nome_arquivo_final = f"{matricula_normalizada}-{competencia}.pdf"
+    nome_arquivo_final = f"espelho_ponto-{matricula_normalizada}-{competencia}.pdf"
 
     caminho_final = pasta_espelho / nome_arquivo_final
 
