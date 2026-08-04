@@ -1,4 +1,5 @@
 from src.browser import criar_navegador
+from src.logs import registrar_ocorrencia
 from src.controle import (
     ler_planilha_controle,
     validar_colunas_obrigatorias,
@@ -103,14 +104,40 @@ def processar_linha(df, linha, indice):
                 arquivos_antes = arquivos_antes
             )
 
-            caminho_pdf_final = processar_zip_relatorio(
-                caminho_zip=caminho_zip,
-                matricula=matricula,
-                nome=nome,
-                competencia=competencia,
-                local=local,
-                status=status
-            )
+            try:
+                caminho_pdf_final = processar_zip_relatorio(
+                    caminho_zip=caminho_zip,
+                    matricula=matricula,
+                    nome=nome,
+                    competencia=competencia,
+                    local=local,
+                    status=status,
+                )
+
+                print(
+                    f"PDF final salvo em: "
+                    f"{caminho_pdf_final}"
+                )
+
+            except FileExistsError as erro:
+                print(
+                    f"O PDF da competência {competencia} "
+                    "já existe. Continuando o processamento."
+                )
+
+                registrar_ocorrencia(
+                    tipo="ARQUIVO_JA_EXISTE",
+                    matricula=matricula,
+                    nome=nome,
+                    competencia=competencia,
+                    detalhes=str(erro),
+                )
+
+                print(
+                    "Ocorrência registrada no arquivo de log."
+                )
+
+
             registrar_competencia_concluida(
                 df=df,
                 indice=indice,

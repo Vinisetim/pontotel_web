@@ -11,6 +11,7 @@ PASTA_PROCESSAMENTO,
 TEMPO_ESPERA_DOWNLOAD,
 PASTA_SHAREPOINT_ARQUIVO,
 )
+from src.logs import registrar_ocorrencia
 
 def normalzar_nome_arquivo(texto):
     """Normaliza um texto para que possa ser usado de nome de arquivo"""
@@ -137,7 +138,7 @@ def interpretar_local(local):
     local = str(local).strip()
     if local.upper() == "MATRIZ":
         return "Matriz", None
-    
+
     if "|" not in local:
         raise ValueError(
             f"Valor inválido na coluna LOCAL. Esperado formato 'TIPO | UNIDADE': {local}"
@@ -271,7 +272,10 @@ def montar_caminho_base_status(local, status):
     )
 
 
-def localizar_pasta_colaborador(caminho_base_status, matricula):
+def localizar_pasta_colaborador(
+    caminho_base_status,
+    matricula,
+):
     """
     Localiza a pasta do colaborador dentro da pasta de status.
 
@@ -289,18 +293,32 @@ def localizar_pasta_colaborador(caminho_base_status, matricula):
 
     pastas_encontradas = [
         caminho
-        for caminho in caminho_base_status.glob(padrao_busca)
+        for caminho in caminho_base_status.glob(
+            padrao_busca
+        )
         if caminho.is_dir()
     ]
 
     if not pastas_encontradas:
+        mensagem_erro = (
+            f"Nenhuma pasta encontrada para a matrícula "
+            f"{matricula} em {caminho_base_status}"
+        )
+
+        registrar_ocorrencia(
+            tipo="PASTA_NAO_ENCONTRADA",
+            matricula=matricula,
+            detalhes=mensagem_erro,
+        )
+
         raise FileNotFoundError(
-            f"Nenhuma pasta encontrada para a matrícula {matricula} em {caminho_base_status}"
+            mensagem_erro
         )
 
     if len(pastas_encontradas) > 1:
         raise ValueError(
-            f"Mais de uma pasta encontrada para a matrícula {matricula}: {pastas_encontradas}"
+            f"Mais de uma pasta encontrada para a matrícula "
+            f"{matricula}: {pastas_encontradas}"
         )
 
     return pastas_encontradas[0]
