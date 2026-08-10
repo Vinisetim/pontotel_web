@@ -289,7 +289,10 @@ def localizar_pasta_colaborador(
 
     matricula = str(matricula).strip()
 
-    padrao_busca = f"00{matricula}*"
+    if len(matricula) == 4:
+        padrao_busca = f"00{matricula}*"
+
+    else: padrao_busca = f"000{matricula}*"
 
     pastas_encontradas = [
         caminho
