@@ -151,6 +151,8 @@ def buscar_empregados(navegador, matricula):
 
     campo_empregado.click()
     campo_empregado.clear()
+    if len(matricula) == 3:
+        campo_empregado.send_keys("0" + matricula)
     campo_empregado.send_keys(matricula)
 
     print("Matrícula digitada. Aguardando o resultado carregar...")

@@ -115,8 +115,7 @@ def processar_linha(df, linha, indice):
                 )
 
                 print(
-                    f"PDF final salvo em: "
-                    f"{caminho_pdf_final}"
+                    f"PDF final salvo em: {caminho_pdf_final}"
                 )
 
             except FileExistsError as erro:
@@ -136,8 +135,7 @@ def processar_linha(df, linha, indice):
                 print(
                     "Ocorrência registrada no arquivo de log."
                 )
-
-
+                
             registrar_competencia_concluida(
                 df=df,
                 indice=indice,

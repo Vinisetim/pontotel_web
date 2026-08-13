@@ -349,7 +349,7 @@ def mover_pdf_para_pasta_espelho(caminho_pdf, pasta_espelho, matricula, nome, co
     matricula_normalizada = normalzar_nome_arquivo(matricula)
     nome_normalizado = normalzar_nome_arquivo(nome)
 
-    nome_arquivo_final = f"espelho_ponto-{matricula_normalizada}-{competencia}.pdf"
+    nome_arquivo_final = f"espelho_ponto-{competencia}.pdf"
 
     caminho_final = pasta_espelho / nome_arquivo_final
 
