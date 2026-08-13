@@ -153,21 +153,32 @@ def buscar_empregados(navegador, matricula):
     campo_empregado.clear()
     if len(matricula) == 3:
         campo_empregado.send_keys("0" + matricula)
-    campo_empregado.send_keys(matricula)
+    else: campo_empregado.send_keys(matricula)
 
     print("Matrícula digitada. Aguardando o resultado carregar...")
     time.sleep(1)
     # O title contém matrícula + nome.
     # Exemplo: title="1428 Diego De Oliveira Mendonça"
-    linha_empregado = wait.until(
-        EC.element_to_be_clickable(
-            (
-                By.XPATH,
-                f"//span[@title and "
-                f"starts-with(normalize-space(@title), '{matricula} ')]"
+    if len(matricula) == "3":
+        linha_empregado = wait.until(
+            EC.element_to_be_clickable(
+                (
+                    By.XPATH,
+                    f"//span[@title and "
+                    f"starts-with(normalize-space(@title), '{"0" + matricula} ')]"
+                )
             )
         )
-    )
+    else:
+        linha_empregado = wait.until(
+            EC.element_to_be_clickable(
+                (
+                    By.XPATH,
+                    f"//span[@title and "
+                    f"starts-with(normalize-space(@title), '{matricula} ')]"
+                )
+            )
+        )
 
     print("Empregado encontrado. Abrindo o painel lateral...")
 
