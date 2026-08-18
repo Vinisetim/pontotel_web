@@ -159,7 +159,7 @@ def buscar_empregados(navegador, matricula):
     time.sleep(1)
     # O title contém matrícula + nome.
     # Exemplo: title="1428 Diego De Oliveira Mendonça"
-    if len(matricula) == "3":
+    if len(matricula) == 3:
         linha_empregado = wait.until(
             EC.element_to_be_clickable(
                 (
@@ -499,6 +499,32 @@ def formatar_competencia_para_relatorio(competencia):
     competencia_formatada = f"{int(mes)}/{ano}"
     return competencia_formatada
 
+def abrir_gaveta_relatorios(navegador):
+    """
+    Abre a gaveta lateral de relatórios.
+    """
+
+    wait = WebDriverWait(
+        navegador,
+        TEMPO_ESPERA_PADRAO
+    )
+
+    botao_gaveta = wait.until(
+        EC.element_to_be_clickable(
+            (
+                By.XPATH,
+                "//li[@id='secao-alertas']//button"
+            )
+        )
+    )
+
+    navegador.execute_script(
+        "arguments[0].click();",
+        botao_gaveta
+    )
+
+    print("Gaveta de relatórios aberta.")
+
 def baixar_relatorio_competencia(
     navegador,
     posicao,
@@ -578,36 +604,7 @@ def baixar_relatorio_competencia(
 
     print("Abrindo gaveta de relatórios...")
 
-    def abrir_gaveta(driver):
-        try:
-            botao_gaveta = driver.find_element(
-                By.XPATH,
-                xpath_gaveta
-            )
-
-            if not (
-                botao_gaveta.is_displayed()
-                and botao_gaveta.is_enabled()
-            ):
-                return False
-
-            driver.execute_script(
-                "arguments[0].click();",
-                botao_gaveta
-            )
-
-            return True
-
-        except (
-            StaleElementReferenceException,
-            NoSuchElementException,
-        ):
-            return False
-
-    wait_padrao.until(
-        abrir_gaveta
-    )
-
+    abrir_gaveta_relatorios(navegador)
     print("Gaveta de relatórios aberta.")
 
     # ---------------------------------------------------------
@@ -949,3 +946,85 @@ def baixar_relatorio_competencia(
         )
 
     return caminho_zip
+
+def cancelar_relatorio_em_andamento(navegador):
+    """
+    Abre a gaveta de relatórios e cancela uma geração em andamento,
+    caso o botão de cancelamento esteja disponível.
+
+    Se não houver relatório em andamento, continua normalmente.
+    """
+
+    wait = WebDriverWait(
+        navegador,
+        TEMPO_ESPERA_PADRAO
+    )
+
+    abrir_gaveta_relatorios(navegador)
+
+    botoes_cancelar = navegador.find_elements(
+        By.CSS_SELECTOR,
+        (
+            "pontotel-botao"
+            "[aria-label='Cancelar geração do relatório']"
+        )
+    )
+
+    botoes_cancelar_visiveis = [
+        botao
+        for botao in botoes_cancelar
+        if botao.is_displayed()
+    ]
+
+    if not botoes_cancelar_visiveis:
+        print(
+            "Nenhum relatório em andamento foi encontrado."
+        )
+
+        return False
+
+    print(
+        "Relatório em andamento encontrado. "
+        "Cancelando geração..."
+    )
+
+    navegador.execute_script(
+        "arguments[0].click();",
+        botoes_cancelar_visiveis[0]
+    )
+
+    botao_confirmar = wait.until(
+        EC.element_to_be_clickable(
+            (
+                By.XPATH,
+                "//button["
+                "contains(@class, 'swal2-confirm') "
+                "and normalize-space()='OK'"
+                "]"
+            )
+        )
+    )
+
+    botao_confirmar.click()
+
+    print("Cancelamento confirmado.")
+
+    # Após a confirmação, o site mostra outro popup:
+    # "Relatório cancelado com sucesso."
+    botao_ok_sucesso = wait.until(
+        EC.element_to_be_clickable(
+            (
+                By.XPATH,
+                "//button["
+                "contains(@class, 'swal2-confirm') "
+                "and normalize-space()='OK'"
+                "]"
+            )
+        )
+    )
+
+    botao_ok_sucesso.click()
+
+    print("Popup de cancelamento fechado.")
+
+    return True

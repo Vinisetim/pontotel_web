@@ -19,8 +19,9 @@ from src.pontotel import (
     voltar_meses,
     gerar_relatorio_mes_atual,
     baixar_relatorio_competencia,
-buscar_empregados,
-entrar_empregados
+    buscar_empregados,
+    entrar_empregados,
+    cancelar_relatorio_em_andamento
 )
 from src.arquivo import (
     obter_arquivos_atuais_download,
@@ -67,6 +68,7 @@ def processar_linha(df, linha, indice):
         acessar_login(navegador)
         preencher_email(navegador, email)
         preencher_senha_entrar(navegador, senha)
+        cancelar_relatorio_em_andamento(navegador)
         entrar_empregados(navegador)
 
         periodo = calcular_periodo_relatorios(
