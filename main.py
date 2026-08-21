@@ -1,3 +1,5 @@
+import time
+
 from src.browser import criar_navegador
 from src.logs import registrar_ocorrencia
 from src.controle import (
@@ -68,7 +70,9 @@ def processar_linha(df, linha, indice):
         acessar_login(navegador)
         preencher_email(navegador, email)
         preencher_senha_entrar(navegador, senha)
+        time.sleep(1)
         cancelar_relatorio_em_andamento(navegador)
+        time.sleep(1)
         entrar_empregados(navegador)
 
         periodo = calcular_periodo_relatorios(
