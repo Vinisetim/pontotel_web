@@ -564,7 +564,7 @@ def baixar_relatorio_competencia(
 
     wait_relatorio = WebDriverWait(
         navegador,
-        120,
+        240,
         poll_frequency=0.5,
         ignored_exceptions=(
             StaleElementReferenceException,
@@ -662,14 +662,7 @@ def baixar_relatorio_competencia(
         "Notificação verde detectada. O relatório foi concluído."
     )
 
-    # ---------------------------------------------------------
     # 3. Download
-    # ---------------------------------------------------------
-
-    # ---------------------------------------------------------
-    # 3. Download
-    # ---------------------------------------------------------
-
     if posicao == 0:
         print(
             "Primeira competência: mantendo comportamento de "
