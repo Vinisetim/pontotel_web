@@ -878,7 +878,7 @@ def baixar_relatorio_competencia(
     def clicar_fora_da_gaveta(driver):
         """
         Segunda tentativa:
-        usa o comportamento antigo do seu código,
+        usa o comportamento antigo do código,
         clicando em uma área fora da gaveta.
         """
 

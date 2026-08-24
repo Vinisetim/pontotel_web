@@ -15,8 +15,6 @@ from src.pontotel import (
     acessar_login,
     preencher_email,
     preencher_senha_entrar,
-    clicar_folha,
-    buscar_empregado,
     calcular_periodo_relatorios,
     voltar_meses,
     gerar_relatorio_mes_atual,
@@ -72,7 +70,6 @@ def processar_linha(df, linha, indice):
         preencher_senha_entrar(navegador, senha)
         time.sleep(1)
         cancelar_relatorio_em_andamento(navegador)
-        time.sleep(1)
         entrar_empregados(navegador)
 
         periodo = calcular_periodo_relatorios(
@@ -228,4 +225,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
