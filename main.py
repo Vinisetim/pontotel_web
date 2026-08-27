@@ -102,9 +102,11 @@ def processar_linha(df, linha, indice):
 
             caminho_zip = baixar_relatorio_competencia(
                 navegador=navegador,
-                posicao = posicao,
-                competencia = competencia,
-                arquivos_antes = arquivos_antes
+                posicao=posicao,
+                competencia=competencia,
+                arquivos_antes=arquivos_antes,
+                matricula=matricula,
+                nome=nome,
             )
 
             try:

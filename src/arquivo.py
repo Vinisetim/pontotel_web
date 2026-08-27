@@ -60,34 +60,157 @@ def esperar_arquivo_estavel(caminho_arquivo, timeout=60, intervalo=1):
 
         time.sleep(intervalo)
 
-def esperar_novo_zip(arquivos_antes, timeout=TEMPO_ESPERA_DOWNLOAD):
-    """Aguarda até que um novo arquivo zip apareça na pasta downloads"""
+def esperar_novo_zip(
+    arquivos_antes,
+    timeout=TEMPO_ESPERA_DOWNLOAD,
+    matricula=None,
+    nome=None,
+    competencia=None,
+):
+    """
+    Aguarda o download de um novo arquivo ZIP.
+
+    Comportamento:
+    - enquanto existir arquivo temporário, continua aguardando;
+    - quando surgir um ZIP sem arquivo temporário, aguarda estabilidade;
+    - se o download finalizar com outra extensão, registra ocorrência;
+    - se o tempo limite for excedido, gera TimeoutError.
+    """
 
     tempo_inicial = time.time()
 
-    while True:
-        arquivos_agora = set(PASTA_DOWNLOADS.glob("*"))
+    extensoes_temporarias = {
+        ".crdownload",
+        ".part",
+        ".tmp",
+    }
 
-        arquivos_novos = arquivos_agora-arquivos_antes
+    while True:
+        arquivos_agora = set(
+            PASTA_DOWNLOADS.glob("*")
+        )
+
+        arquivos_novos = (
+            arquivos_agora - arquivos_antes
+        )
 
         arquivos_temporarios = [
-            arquivo for arquivo in arquivos_novos
-            if arquivo.suffix in [".crdownload", ".part", ".tmp"]
+            arquivo
+            for arquivo in arquivos_novos
+            if arquivo.suffix.lower()
+            in extensoes_temporarias
         ]
 
         arquivos_zip_novos = [
-            arquivo for arquivo in arquivos_novos
-            if arquivo.suffix == ".zip"
+            arquivo
+            for arquivo in arquivos_novos
+            if arquivo.suffix.lower() == ".zip"
         ]
 
-        if arquivos_zip_novos and not arquivos_temporarios:
-            zip_baixado = max(arquivos_zip_novos, key=lambda arquivo:
-                              arquivo.stat().st_mtime)
-            esperar_arquivo_estavel(zip_baixado)
+        arquivos_nao_zip = [
+            arquivo
+            for arquivo in arquivos_novos
+            if (
+                arquivo.suffix.lower()
+                not in extensoes_temporarias
+                and arquivo.suffix.lower() != ".zip"
+            )
+        ]
+
+        # Enquanto houver arquivo temporário, o download
+        # ainda não terminou. Recomeça a verificação.
+        if arquivos_temporarios:
+            nomes_temporarios = [
+                arquivo.name
+                for arquivo in arquivos_temporarios
+            ]
+
+            print(
+                "Download ainda em andamento:",
+                nomes_temporarios,
+            )
+
+            if (
+                time.time() - tempo_inicial
+                > timeout
+            ):
+                raise TimeoutError(
+                    "Tempo excedido aguardando o download "
+                    "temporário ser concluído."
+                )
+
+            time.sleep(2)
+            continue
+
+        # Se existe ZIP e não há temporários, o navegador
+        # terminou de atribuir a extensão final.
+        if arquivos_zip_novos:
+            zip_baixado = max(
+                arquivos_zip_novos,
+                key=lambda arquivo: (
+                    arquivo.stat().st_mtime
+                ),
+            )
+
+            esperar_arquivo_estavel(
+                zip_baixado
+            )
+
+            print(
+                f"Arquivo ZIP identificado: "
+                f"{zip_baixado}"
+            )
+
             return zip_baixado
 
-        if time.time() - tempo_inicial > timeout:
-            raise TimeoutError("Tempo excedido, esperando novo arquivo ZIP ser baixado")
+        # Se não há temporário nem ZIP, mas há algum novo
+        # arquivo, o download terminou com extensão inesperada.
+        if arquivos_nao_zip:
+            arquivo_invalido = max(
+                arquivos_nao_zip,
+                key=lambda arquivo: (
+                    arquivo.stat().st_mtime
+                ),
+            )
+
+            esperar_arquivo_estavel(
+                arquivo_invalido
+            )
+
+            mensagem_erro = (
+                "O download foi concluído, mas o arquivo "
+                "gerado não é ZIP. "
+                f"Arquivo encontrado: {arquivo_invalido}"
+            )
+
+            registrar_ocorrencia(
+                tipo="ARQUIVO_BAIXADO_NAO_ZIP",
+                matricula=(
+                    matricula
+                    if matricula is not None
+                    else "NAO_INFORMADA"
+                ),
+                nome=nome,
+                competencia=competencia,
+                detalhes=mensagem_erro,
+            )
+
+            raise FileNotFoundError(
+                mensagem_erro
+            )
+
+        if (
+            time.time() - tempo_inicial
+            > timeout
+        ):
+            raise TimeoutError(
+                "Tempo excedido esperando um novo "
+                "arquivo ZIP ser baixado."
+            )
+
+        print(
+            "Aguardando o download começar..."
+        )
 
         time.sleep(2)
 

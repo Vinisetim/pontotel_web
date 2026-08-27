@@ -94,28 +94,38 @@ def entrar_empregados(navegador):
 
     link_empregados.click()
 
-    time.sleep(2)
+    time.sleep(1)
     print("Aguardando a página de empregados carregar...")
+
     filtro_empregados = wait.until(
         EC.element_to_be_clickable(
             (
                 By.XPATH,
-                "//span[contains(@class, 'multiselect__single') "
-                "and normalize-space()='somente ativos']"
+                "// label[.// span[normalize-space() = 'mostrar']]"
             )
         )
     )
 
     filtro_empregados.click()
+
+    print("Filtro 'somente ativos' aberto.")
+
+    filtro_empregados.click()
     print("Menu suspenso do filtro aberto.")
 
-    ActionChains(navegador) \
-        .send_keys(Keys.ARROW_DOWN) \
-        .send_keys(Keys.ENTER) \
-        .perform()
+    opcao_todos = wait.until(
+        EC.element_to_be_clickable(
+            (
+                By.XPATH,
+                "//div[@role='option' and @title='todos']"
+            )
+        )
+    )
+
+    opcao_todos.click()
 
     print("Opção 'todos' selecionada.")
-    time.sleep(5)
+    time.sleep(2)
 
 def buscar_empregados(navegador, matricula):
     """
@@ -416,6 +426,7 @@ def voltar_meses(navegador, quantidade_meses):
     wait = WebDriverWait(navegador, TEMPO_ESPERA_PADRAO)
 
     for numero_clique in range(quantidade_meses):
+        time.sleep(1)
         botao_mes_anterior = wait.until(
             EC.element_to_be_clickable(
                 (
@@ -427,9 +438,6 @@ def voltar_meses(navegador, quantidade_meses):
 
         botao_mes_anterior.click()
         print(f"Voltando mês: {numero_clique + 1} de {quantidade_meses}")
-
-        time.sleep(1)
-
 
 def gerar_relatorio_mes_atual(navegador):
     """Gerar relatórios do mes atualmente selecionado no pontotel"""
@@ -529,7 +537,9 @@ def baixar_relatorio_competencia(
     navegador,
     posicao,
     competencia,
-    arquivos_antes
+    arquivos_antes,
+    matricula,
+    nome,
 ):
     """
     Abre a gaveta lateral de relatórios, espera a notificação verde
@@ -746,7 +756,7 @@ def baixar_relatorio_competencia(
                     NoSuchElementException,
             ):
                 return False
-
+        time.sleep(1)
         def clicar_download_primeiro_relatorio(driver):
             try:
                 botao_download = obter_download_primeiro_relatorio(
@@ -818,7 +828,10 @@ def baixar_relatorio_competencia(
     )
 
     caminho_zip = esperar_novo_zip(
-        arquivos_antes
+        arquivos_antes=arquivos_antes,
+        matricula=matricula,
+        nome=nome,
+        competencia=competencia,
     )
 
     print(f"ZIP concluído: {caminho_zip}")
