@@ -124,11 +124,6 @@ def processar_linha(df, linha, indice):
                 )
 
             except FileExistsError as erro:
-                print(
-                    f"O PDF da competência {competencia} "
-                    "já existe. Continuando o processamento."
-                )
-
                 registrar_ocorrencia(
                     tipo="ARQUIVO_JA_EXISTE",
                     matricula=matricula,
@@ -138,23 +133,23 @@ def processar_linha(df, linha, indice):
                 )
 
                 print(
-                    "Ocorrência registrada no arquivo de log."
+                    f"O PDF da competência {competencia} "
+                    "já existe. Ocorrência registrada no log."
                 )
-                
+
+            # Tanto um arquivo novo quanto um arquivo já existente
+            # significam que essa competência está resolvida.
             registrar_competencia_concluida(
                 df=df,
                 indice=indice,
-                competencia=competencia
+                competencia=competencia,
             )
 
             salvar_planilha_controle(df)
 
             print(
-                f"Checkpoint salvo. "
-                f"Competência {competencia} concluída."
+                f"Checkpoint salvo após a competência {competencia}."
             )
-
-            print(f"PDF final salvo em: {caminho_pdf_final}")
 
             eh_ultima_competencia = posicao == total_competencias - 1
 
