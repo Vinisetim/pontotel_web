@@ -68,7 +68,6 @@ def processar_linha(df, linha, indice):
         acessar_login(navegador)
         preencher_email(navegador, email)
         preencher_senha_entrar(navegador, senha)
-        time.sleep(1)
         cancelar_relatorio_em_andamento(navegador)
         entrar_empregados(navegador)
 

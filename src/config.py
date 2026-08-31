@@ -25,6 +25,6 @@ URL_PONTOTEL = "https://gestao.pontotel.com.br/#/cognito/login"
 
 TEMPO_ESPERA_PADRAO = 20
 
-TEMPO_ESPERA_DOWNLOAD = 440
+TEMPO_ESPERA_DOWNLOAD = 600
 
 

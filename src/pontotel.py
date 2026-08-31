@@ -441,7 +441,7 @@ def voltar_meses(navegador, quantidade_meses):
 
 def gerar_relatorio_mes_atual(navegador):
     """Gerar relatórios do mes atualmente selecionado no pontotel"""
-
+    time.sleep(0.5)
     wait = WebDriverWait(navegador, TEMPO_ESPERA_PADRAO)
 
     botao_gerar_folha = wait.until(
@@ -454,7 +454,7 @@ def gerar_relatorio_mes_atual(navegador):
 )
 
     botao_gerar_folha.click()
-
+    time.sleep(0.5)
     botao_gerar = wait.until(
         EC.element_to_be_clickable(
             (
@@ -481,10 +481,10 @@ def gerar_relatorio_mes_atual(navegador):
 def gerar_relatorios_periodo(navegador, competencias):
     """Gera relatórios mes a mes, partindo do mes de demissao até o mes de admissao"""
     total_competencias = len(competencias)
-
+    time.sleep(0.5)
     for indice, competencia in enumerate(competencias):
         print(f"Gerando relatório da competencia: {competencia} ({indice + 1}/{total_competencias})")
-
+        time.sleep(0.5)
         gerar_relatorio_mes_atual(navegador)
 
         time.sleep(1)
@@ -511,7 +511,7 @@ def abrir_gaveta_relatorios(navegador):
     """
     Abre a gaveta lateral de relatórios.
     """
-
+    time.sleep(0.5)
     wait = WebDriverWait(
         navegador,
         TEMPO_ESPERA_PADRAO
@@ -555,7 +555,7 @@ def baixar_relatorio_competencia(
     - não depende mais de 9/2025 versus 09/2025;
     - falha ao fechar a gaveta não encerra o processamento.
     """
-
+    time.sleep(0.5)
     from selenium.common.exceptions import (
         StaleElementReferenceException,
         NoSuchElementException,
@@ -847,7 +847,7 @@ def baixar_relatorio_competencia(
         Primeira tentativa:
         procura o botão de fechar da gaveta.
         """
-
+        time.sleep(0.5)
         seletores_possiveis = [
             "button[aria-label='Fechar gaveta']",
             "button[aria-label='Fechar']",
@@ -930,7 +930,7 @@ def baixar_relatorio_competencia(
         Tenta fechar a gaveta primeiro pelo botão.
         Se não conseguir, tenta clicar fora dela.
         """
-
+        time.sleep(0.5)
         if clicar_botao_fechar_gaveta(driver):
             return True
 
@@ -960,7 +960,7 @@ def cancelar_relatorio_em_andamento(navegador):
 
     Se não houver relatório cancelável, continua normalmente.
     """
-
+    time.sleep(0.5)
     from selenium.common.exceptions import (
         NoSuchElementException,
         StaleElementReferenceException,
@@ -1005,7 +1005,6 @@ def cancelar_relatorio_em_andamento(navegador):
     )
 
     print("Procurando relatório em andamento cancelável...")
-    time.sleep(1)
     try:
         relatorio_cancelavel = wait.until(
             EC.visibility_of_element_located(
@@ -1093,7 +1092,7 @@ def cancelar_relatorio_em_andamento(navegador):
             )
         )
     )
-    time.sleep(1)
+    time.sleep(0.5)
     botao_ok.click()
 
     print("Popup de cancelamento fechado.")
