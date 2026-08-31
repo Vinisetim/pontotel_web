@@ -8,7 +8,6 @@ from src.config import PASTA_DOWNLOADS
 def criar_navegador():
     """Cria e configura uma instacia de navegador para a automação"""
 
-
     PASTA_DOWNLOADS.mkdir(parents=True, exist_ok=True)
 
     #salva função como variavel
@@ -17,19 +16,25 @@ def criar_navegador():
     #configura comportamentos do navegador antes de abrir (aqui ele configura para abrir maximizado)
     options.add_argument("--start-maximized")
 
-    #variavel com algumas definições em dict
-    prefs ={
-        #configura diretório do download
-        "download.default_directory" : str(PASTA_DOWNLOADS),
-        # perguntar onde salvar = False
-        "download.prompt_for_directories" : False,
-        "download.directory_upgrade" : True,
-        # Bloquear notificações
-        "profile.default_content_setting_values.notifications" : 2,
-        "safebrowsing.enabled" : True,
-    }
+    options.add_argument('--disable-background-timer-throttling')
 
+    options.add_argument('--disable-backgrounding-occluded-windows')
+
+    options.add_argument('--disable-renderer-backgrounding')
+
+    #variavel com algumas definições em dict
+    prefs = {
+        # configura diretório do download
+        "download.default_directory": str(PASTA_DOWNLOADS),
+        # perguntar onde salvar = False
+        "download.prompt_for_directories": False,
+        "download.directory_upgrade": True,
+        # Bloquear notificações
+        "profile.default_content_setting_values.notifications": 2,
+        "safebrowsing.enabled": True,
+    }
     options.add_experimental_option("prefs", prefs)
+
 
     #baixa ou configura o Chrome automaticamente
     service = Service(ChromeDriverManager().install())

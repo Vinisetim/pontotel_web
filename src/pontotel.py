@@ -448,11 +448,16 @@ def gerar_relatorio_mes_atual(navegador):
         EC.element_to_be_clickable(
             (
                 By.XPATH,
-                "//*[@aria-label='gerar folha/espelho de ponto']"
+                "//div["
+                "@aria-label='gerar folha/espelho de ponto' "
+                "and contains(concat(' ', normalize-space(@class), ' '), "
+                "' botao-toolbox ') "
+                "and contains(concat(' ', normalize-space(@class), ' '), "
+                "' icone-chapado-folha ')"
+                "]"
+            )
         )
     )
-)
-
     botao_gerar_folha.click()
     time.sleep(0.5)
     botao_gerar = wait.until(
