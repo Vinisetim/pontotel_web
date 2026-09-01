@@ -458,8 +458,9 @@ def gerar_relatorio_mes_atual(navegador):
             )
         )
     )
-    botao_gerar_folha.click()
     time.sleep(0.5)
+    botao_gerar_folha.click()
+
     botao_gerar = wait.until(
         EC.element_to_be_clickable(
             (
@@ -469,7 +470,7 @@ def gerar_relatorio_mes_atual(navegador):
             )
         )
     )
-
+    time.sleep(1)
     botao_gerar.click()
 
     botao_ok = wait.until(
@@ -480,7 +481,7 @@ def gerar_relatorio_mes_atual(navegador):
             )
         )
     )
-
+    time.sleep(0.5)
     botao_ok.click()
 
 def gerar_relatorios_periodo(navegador, competencias):
@@ -1035,16 +1036,20 @@ def cancelar_relatorio_em_andamento(navegador):
 
     print("Hover realizado sobre a linha do relatório.")
 
-    xpath_componente_cancelar = (
-        ".//pontotel-botao["
+    # Trocamos 'pontotel-botao' pela tag 'button' que aparece na imagem
+    xpath_botao_cancelar = (
+        ".//button["
         "@aria-label='Cancelar geração do relatório' "
         "or "
         "contains(@class, 'relatorio__acao--cancelar')"
         "]"
     )
+
     time.sleep(1)
+
     try:
-        componente_cancelar = WebDriverWait(
+        # Agora buscamos diretamente o botão, sem intermediários
+        botao_cancelar = WebDriverWait(
             navegador,
             10,
             poll_frequency=0.5,
@@ -1055,27 +1060,19 @@ def cancelar_relatorio_em_andamento(navegador):
         ).until(
             lambda driver: relatorio_cancelavel.find_element(
                 By.XPATH,
-                xpath_componente_cancelar,
+                xpath_botao_cancelar,
             )
         )
 
     except TimeoutException as erro:
         raise TimeoutException(
-            "A linha cancelável foi encontrada, mas o componente "
+            "A linha cancelável foi encontrada, mas o botão "
             "de cancelamento não apareceu dentro dela."
         ) from erro
 
-    print("Componente de cancelamento encontrado.")
+    print("Botão de cancelamento encontrado. Cancelando relatório...")
 
-    shadow_root = componente_cancelar.shadow_root
-
-    botao_cancelar = shadow_root.find_element(
-        By.CSS_SELECTOR,
-        "button",
-    )
-
-    print("Botão interno encontrado. Cancelando relatório...")
-
+    # Como já temos o botão final, pulamos a parte do shadow_root e clicamos direto
     navegador.execute_script(
         "arguments[0].click();",
         botao_cancelar,

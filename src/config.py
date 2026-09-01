@@ -23,8 +23,8 @@ PASTA_DOWNLOADS = Path(r"C:\Users\vinicius.gomes\OneDrive - JTP TRANSPORTES, SER
 
 URL_PONTOTEL = "https://gestao.pontotel.com.br/#/cognito/login"
 
-TEMPO_ESPERA_PADRAO = 40
+TEMPO_ESPERA_PADRAO = 30
 
-TEMPO_ESPERA_DOWNLOAD = 1000
+TEMPO_ESPERA_DOWNLOAD = 5000
 
 

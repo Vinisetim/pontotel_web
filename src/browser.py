@@ -20,8 +20,6 @@ def criar_navegador():
 
     options.add_argument('--disable-backgrounding-occluded-windows')
 
-    options.add_argument('--disable-renderer-backgrounding')
-
     #variavel com algumas definições em dict
     prefs = {
         # configura diretório do download
@@ -29,9 +27,12 @@ def criar_navegador():
         # perguntar onde salvar = False
         "download.prompt_for_directories": False,
         "download.directory_upgrade": True,
+        # Adicione junto aos outros 'add_argument' nas suas opções
+
         # Bloquear notificações
         "profile.default_content_setting_values.notifications": 2,
         "safebrowsing.enabled": True,
+
     }
     options.add_experimental_option("prefs", prefs)
 

@@ -411,11 +411,9 @@ def localizar_pasta_colaborador(
     """
 
     matricula = str(matricula).strip()
-
-    if len(matricula) == 4:
-        padrao_busca = f"00{matricula}*"
-
-    else: padrao_busca = f"000{matricula}*"
+    # Como pode ficar com zfill:
+    matricula_formatada = matricula.zfill(6)
+    padrao_busca = f"{matricula_formatada}*"
 
     pastas_encontradas = [
         caminho
@@ -461,6 +459,7 @@ def obter_pasta_espelho_ponto(pasta_colaborador):
 
     return pasta_espelho
 
+
 def mover_pdf_para_pasta_espelho(caminho_pdf, pasta_espelho, matricula, nome, competencia):
     """
     Renomeia e move o PDF extraído para a pasta Espelho de Ponto Pontotel.
@@ -472,7 +471,7 @@ def mover_pdf_para_pasta_espelho(caminho_pdf, pasta_espelho, matricula, nome, co
     matricula_normalizada = normalzar_nome_arquivo(matricula)
     nome_normalizado = normalzar_nome_arquivo(nome)
 
-    nome_arquivo_final = f"espelho_ponto-{competencia}.pdf"
+    nome_arquivo_final = f"{competencia}.pdf"
 
     caminho_final = pasta_espelho / nome_arquivo_final
 
