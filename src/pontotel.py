@@ -1,4 +1,6 @@
 import time
+
+from selenium.common import TimeoutException
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -967,137 +969,37 @@ def cancelar_relatorio_em_andamento(navegador):
     Se não houver relatório cancelável, continua normalmente.
     """
     time.sleep(0.5)
-    from selenium.common.exceptions import (
-        NoSuchElementException,
-        StaleElementReferenceException,
-        TimeoutException,
-    )
-
-    print("Abrindo a gaveta de relatórios...")
-
+    print("Abrido gaveta relatórios...")
     abrir_gaveta_relatorios(navegador)
 
-    wait = WebDriverWait(
-        navegador,
-        15,
-        poll_frequency=0.5,
-        ignored_exceptions=(
-            NoSuchElementException,
-            StaleElementReferenceException,
-        ),
-    )
+    wait = WebDriverWait(navegador, 10)
 
-    xpath_relatorio_cancelavel = (
-        "(//div["
-        "contains(concat(' ', normalize-space(@class), ' '), "
-        "' relatorio ') "
-        "and "
-        "contains(concat(' ', normalize-space(@class), ' '), "
-        "' relatorio--em-andamento ') "
-        "and "
-        "contains(concat(' ', normalize-space(@class), ' '), "
-        "' relatorio--pode-cancelar ') "
-        "and "
-        ".//span[contains("
-        "concat(' ', normalize-space(@class), ' '), "
-        "' relatorio__nome '"
-        ")] "
-        "and "
-        ".//p[contains("
-        "concat(' ', normalize-space(@class), ' '), "
-        "' relatorio__progresso '"
-        ")]"
-        "])[1]"
-    )
+    xpath_botao = "//pontotel-botao[@aria-label='Cancelar geração do relatório']"
 
-    print("Procurando relatório em andamento cancelável...")
     try:
-        relatorio_cancelavel = wait.until(
-            EC.visibility_of_element_located(
+        #Ao inves checar visibilidade ou se é clicavel, vamos verificar a existencia do elemento para usar javascript para clicar nele
+        botao_cancelar = wait.until(
+            EC.presence_of_element_located((By.XPATH, xpath_botao))
+        )
+        print("botão de cancelamento encontrado. Tentando cancelar com javascript.")
+
+        navegador.execute_script("arguments[0].click();", botao_cancelar)
+
+        botao_ok = wait.until(
+            EC.element_to_be_clickable(
                 (
-                    By.XPATH,
-                    xpath_relatorio_cancelavel,
+                By.XPATH,
+                "//button[contains(@class, 'swal2-confirm') and normalize-space()='OK']"
                 )
             )
         )
+        time.sleep(0.5)
+        botao_ok.click()
+
+        print("Relatório em andamento canceledo com sucesso.")
+        return True
 
     except TimeoutException:
-        print(
-            "Nenhum relatório em andamento cancelável encontrado."
-        )
+        print("Nenhum relatório em andamento cancelavel foi encontrado.")
         return False
-
-    print("Relatório em andamento cancelável encontrado.")
-
-    ActionChains(navegador) \
-        .move_to_element(relatorio_cancelavel) \
-        .pause(1) \
-        .perform()
-
-    print("Hover realizado sobre a linha do relatório.")
-
-    # Trocamos 'pontotel-botao' pela tag 'button' que aparece na imagem
-    xpath_botao_cancelar = (
-        ".//button["
-        "@aria-label='Cancelar geração do relatório' "
-        "or "
-        "contains(@class, 'relatorio__acao--cancelar')"
-        "]"
-    )
-
-    time.sleep(1)
-
-    try:
-        # Agora buscamos diretamente o botão, sem intermediários
-        botao_cancelar = WebDriverWait(
-            navegador,
-            10,
-            poll_frequency=0.5,
-            ignored_exceptions=(
-                NoSuchElementException,
-                StaleElementReferenceException,
-            ),
-        ).until(
-            lambda driver: relatorio_cancelavel.find_element(
-                By.XPATH,
-                xpath_botao_cancelar,
-            )
-        )
-
-    except TimeoutException as erro:
-        raise TimeoutException(
-            "A linha cancelável foi encontrada, mas o botão "
-            "de cancelamento não apareceu dentro dela."
-        ) from erro
-
-    print("Botão de cancelamento encontrado. Cancelando relatório...")
-
-    # Como já temos o botão final, pulamos a parte do shadow_root e clicamos direto
-    navegador.execute_script(
-        "arguments[0].click();",
-        botao_cancelar,
-    )
-
-    print("Clique no botão de cancelamento executado.")
-
-    botao_ok = WebDriverWait(
-        navegador,
-        TEMPO_ESPERA_PADRAO,
-    ).until(
-        EC.element_to_be_clickable(
-            (
-                By.XPATH,
-                "//button["
-                "contains(@class, 'swal2-confirm') "
-                "and normalize-space()='OK'"
-                "]",
-            )
-        )
-    )
-    time.sleep(0.5)
-    botao_ok.click()
-
-    print("Popup de cancelamento fechado.")
-    print("Relatório em andamento cancelado com sucesso.")
-
-    return True
+    
