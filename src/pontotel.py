@@ -420,31 +420,56 @@ def calcular_periodo_relatorios(admissao, demissao):
         "quantidade_relatorios": len(competencias),
     }
 
+
 def voltar_meses(navegador, quantidade_meses):
     """
-    Clica no botão de voltar mes do pontotel N vezes
+    Clica no botão de voltar mes do pontotel N vezes.
+    Usa o ícone de 'Opções da linha' da tabela como âncora para garantir o carregamento.
     """
-
     wait = WebDriverWait(navegador, TEMPO_ESPERA_PADRAO)
 
+    # O seletor baseado na sua imagem: a tag <a> que abre o menu da linha
+    xpath_ancora = "//a[@title='Opções da linha']"
+
     for numero_clique in range(quantidade_meses):
-        time.sleep(1)
+        # 1. Tira uma "foto" do elemento da tabela ATUAL antes de clicar
+        try:
+            elemento_antigo = navegador.find_element(By.XPATH, xpath_ancora)
+        except:
+            elemento_antigo = None
+
+        time.sleep(0.5)
+
         botao_mes_anterior = wait.until(
             EC.element_to_be_clickable(
-                (
-                By.XPATH,
-                "//*[@aria-label='Mês anterior']"
-                 )
+                (By.XPATH, "//*[@aria-label='Mês anterior']")
             )
         )
-
         botao_mes_anterior.click()
         print(f"Voltando mês: {numero_clique + 1} de {quantidade_meses}")
 
+        # 2. Aguarda o elemento antigo ser "destruído" pelo site (tela limpando)
+        if elemento_antigo:
+            try:
+                wait.until(EC.staleness_of(elemento_antigo))
+            except:
+                pass
+
+        # 3. Aguarda a NOVA tabela do mês ser desenhada na tela
+        wait.until(EC.visibility_of_element_located((By.XPATH, xpath_ancora)))
+
+        # Respiro extra para garantir animações
+        time.sleep(0.5)
+
+
 def gerar_relatorio_mes_atual(navegador):
     """Gerar relatórios do mes atualmente selecionado no pontotel"""
-    time.sleep(0.5)
     wait = WebDriverWait(navegador, TEMPO_ESPERA_PADRAO)
+
+    # 1. Trava de segurança: Garante que a tabela está 100% visível ANTES de clicar em gerar
+    # Isso protege principalmente a geração da primeira competência (mês atual)
+    xpath_ancora = "//a[@title='Opções da linha']"
+    wait.until(EC.visibility_of_element_located((By.XPATH, xpath_ancora)))
 
     botao_gerar_folha = wait.until(
         EC.element_to_be_clickable(
@@ -616,18 +641,14 @@ def baixar_relatorio_competencia(
         "button[aria-label='Fechar gaveta']"
     )
 
-    # ---------------------------------------------------------
     # 1. Abre a gaveta lateral de relatórios
-    # ---------------------------------------------------------
 
     print("Abrindo gaveta de relatórios...")
 
     abrir_gaveta_relatorios(navegador)
     print("Gaveta de relatórios aberta.")
 
-    # ---------------------------------------------------------
     # 2. Espera a notificação verde aparecer
-    # ---------------------------------------------------------
 
     print(
         "Aguardando notificação verde de relatório concluído..."
@@ -681,6 +702,7 @@ def baixar_relatorio_competencia(
     )
 
     # 3. Download
+
     if posicao == 0:
         print(
             "Primeira competência: mantendo comportamento de "
@@ -827,9 +849,8 @@ def baixar_relatorio_competencia(
         print(
             "Clique no download do primeiro relatório executado."
         )
-    # ---------------------------------------------------------
+
     # 4. Aguarda o ZIP
-    # ---------------------------------------------------------
 
     print(
         "Aguardando o arquivo ZIP terminar de baixar..."
@@ -844,120 +865,74 @@ def baixar_relatorio_competencia(
 
     print(f"ZIP concluído: {caminho_zip}")
 
-    # ---------------------------------------------------------
     # 5. Fecha a gaveta
-    # ---------------------------------------------------------
 
     print("Tentando fechar a gaveta de relatórios...")
 
-    def clicar_botao_fechar_gaveta(driver):
+    def fechar_gaveta_robusta(driver):
         """
-        Primeira tentativa:
-        procura o botão de fechar da gaveta.
+        Fecha a gaveta com 3 níveis de resiliência,
+        incluindo ocultação forçada via JavaScript para garantir a tela limpa.
         """
-        time.sleep(0.5)
-        seletores_possiveis = [
-            "button[aria-label='Fechar gaveta']",
-            "button[aria-label='Fechar']",
-            "button[aria-label='Close']",
-            "button.close",
-        ]
+        seletor_gaveta = "pontotel-menu-vertical-gaveta-lateral"
 
-        for seletor in seletores_possiveis:
-            try:
-                botoes = driver.find_elements(
-                    By.CSS_SELECTOR,
-                    seletor
-                )
-
-                for botao in botoes:
-                    try:
-                        if (
-                            botao.is_displayed()
-                            and botao.is_enabled()
-                        ):
-                            driver.execute_script(
-                                "arguments[0].click();",
-                                botao
-                            )
-
-                            print(
-                                "Gaveta fechada pelo botão:",
-                                seletor
-                            )
-
-                            return True
-
-                    except StaleElementReferenceException:
-                        continue
-
-            except StaleElementReferenceException:
-                continue
-
-        return False
-
-    def clicar_fora_da_gaveta(driver):
-        """
-        Segunda tentativa:
-        usa o comportamento antigo do código,
-        clicando em uma área fora da gaveta.
-        """
-
+        #Tentar clicar no 'X' que está realmente visível
         try:
-            elemento_fora_gaveta = driver.execute_script(
+            botoes_x = driver.find_elements(By.CSS_SELECTOR, "button[aria-label='Fechar gaveta']")
+            for botao in botoes_x:
+                if botao.is_displayed():
+                    driver.execute_script("arguments[0].click();", botao)
+                    break
+
+            # Aguarda a gaveta sumir da tela
+            WebDriverWait(driver, 3).until(
+                EC.invisibility_of_element_located((By.TAG_NAME, seletor_gaveta))
+            )
+            print("Gaveta fechada no botão X.")
+            time.sleep(0.5)
+            return True
+        except Exception:
+            pass  # Se falhar, engole o erro silenciosamente e vai pro Plano B
+
+        #Forçar o fechamento pelo teclado (ESC)
+        print("X falhou. Tentando tecla ESC...")
+        try:
+            ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+
+            WebDriverWait(driver, 3).until(
+                EC.invisibility_of_element_located((By.TAG_NAME, seletor_gaveta))
+            )
+            print("Gaveta fechada no Plano B (tecla ESC).")
+            time.sleep(0.5)
+            return True
+        except Exception:
+            pass
+
+        # Força bruta (Ocultar elemento no HTML)
+        print("Removendo a gaveta da tela com JavaScript...")
+        try:
+            #remove a visibilidade da janela injetando CSS via JS
+            driver.execute_script(
                 """
-                return document.elementFromPoint(
-                    Math.floor(window.innerWidth * 0.70),
-                    Math.floor(window.innerHeight * 0.50)
-                );
+                var gavetas = document.getElementsByTagName('pontotel-menu-vertical-gaveta-lateral');
+                for(var i = 0; i < gavetas.length; i++) {
+                    gavetas[i].style.display = 'none';
+                }
                 """
             )
-
-            if elemento_fora_gaveta is None:
-                return False
-
-            ActionChains(driver) \
-                .move_to_element(elemento_fora_gaveta) \
-                .click() \
-                .perform()
-
-            print(
-                "Clique fora da gaveta executado."
-            )
-
+            time.sleep(0.5)
+            print("Gaveta ocultada.")
             return True
 
-        except (
-            StaleElementReferenceException,
-            NoSuchElementException,
-        ):
+        except Exception as erro:
+            print(f"Erro inesperado no fechamento da gaveta: {erro}")
             return False
 
-    def fechar_gaveta(driver):
-        """
-        Tenta fechar a gaveta primeiro pelo botão.
-        Se não conseguir, tenta clicar fora dela.
-        """
-        time.sleep(0.5)
-        if clicar_botao_fechar_gaveta(driver):
-            return True
+    # Executa a nossa função robusta
+    fechou = fechar_gaveta_robusta(navegador)
 
-        return clicar_fora_da_gaveta(driver)
-
-    try:
-        wait_fechar.until(
-            fechar_gaveta
-        )
-
-        print(
-            "Tentativa de fechamento da gaveta executada."
-        )
-
-    except TimeoutException:
-        print(
-            "Aviso: não foi possível fechar a gaveta. "
-            "O ZIP já foi baixado e o navegador continuará aberto."
-        )
+    if not fechou:
+        print("Aviso: não foi possível fechar a gaveta pelo botão 'X'. O fluxo continuará.")
 
     return caminho_zip
 
