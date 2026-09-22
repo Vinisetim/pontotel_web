@@ -2,15 +2,7 @@ import time
 
 from src.browser import criar_navegador
 from src.logs import registrar_ocorrencia
-from src.controle import (
-    ler_planilha_controle,
-    validar_colunas_obrigatorias,
-    linha_deve_ser_processada,
-    marcar_linha_em_andamento,
-    marcar_linha_como_concluida,
-    registrar_competencia_concluida,
-    salvar_planilha_controle,
-)
+from src.controle import preparar_fila_execucao, salvar_estado_no_blob
 from src.pontotel import (
     acessar_login,
     preencher_email,
@@ -29,40 +21,26 @@ from src.arquivo import (
 )
 
 
-def processar_linha(df, linha, indice):
-    """
-    Processa uma única linha da planilha.
-
-    Para cada linha:
-    - abre um navegador novo;
-    - faz login;
-    - busca o colaborador;
-    - gera todos os relatórios do período;
-    - processa os ZIPs;
-    - move os PDFs finais;
-    - fecha o navegador.
-    """
-
+def processar_linha(linha, indice):
+    """Processa uma única linha do DataFrame da fila de execução."""
     email = "denise.soares@jtptransportes.com.br"
     senha = "Denny3129@"
 
-
+    # Consumindo as colunas que foram normalizadas no controle.py
     matricula = str(linha["MATRICULA"]).strip()
-    nome = str(linha["NOME DO AUTOR"]).strip()
+    nome = str(linha["NOME"]).strip()
     admissao = linha["ADMISSAO"]
-    demissao = linha["DEMISSAO"]
+    demissao = linha["DEMISSAO"]  # O controle.py já definiu se é a data real ou a ultima competência
     local = str(linha["LOCAL"]).strip()
-    status = str(linha["STATUS"]).strip()
 
     print("=" * 80)
-    print(f"Iniciando linha {indice}")
-    print(f"Matrícula: {matricula}")
-    print(f"Nome: {nome}")
-    print(f"Local: {local}")
-    print(f"Status: {status}")
+    print(f"Iniciando linha {indice} (Prioridade {linha['PRIORIDADE_PESO']})")
+    print(f"Matrícula: {matricula} | Nome: {nome}")
+    print(f"Ponto de Partida: {demissao.strftime('%m/%Y')} | Admissão: {admissao.strftime('%m/%Y')}")
     print("=" * 80)
 
     navegador = criar_navegador()
+    ultima_competencia_processada = None
 
     try:
         acessar_login(navegador)
@@ -71,22 +49,14 @@ def processar_linha(df, linha, indice):
         cancelar_relatorio_em_andamento(navegador)
         entrar_empregados(navegador)
 
-        periodo = calcular_periodo_relatorios(
-            admissao=admissao,
-            demissao=demissao,
-        )
+        periodo = calcular_periodo_relatorios(admissao=admissao, demissao=demissao)
 
-        print(f"Meses até a demissão: {periodo['meses_ate_demissao']}")
+        print(f"Meses a retroceder: {periodo['meses_ate_demissao']}")
         print(f"Quantidade de relatórios: {periodo['quantidade_relatorios']}")
-        print(f"Primeira competência: {periodo['competencias'][0]}")
-        print(f"Última competência: {periodo['competencias'][-1]}")
 
         buscar_empregados(navegador, matricula)
 
-        voltar_meses(
-            navegador=navegador,
-            quantidade_meses=periodo["meses_ate_demissao"],
-        )
+        voltar_meses(navegador, quantidade_meses=periodo["meses_ate_demissao"])
 
         competencias = periodo["competencias"]
         total_competencias = len(competencias)
@@ -115,108 +85,61 @@ def processar_linha(df, linha, indice):
                     nome=nome,
                     competencia=competencia,
                     local=local,
-                    status=status,
+                    status='2_Desligados'
                 )
-
-                print(
-                    f"PDF final salvo em: {caminho_pdf_final}"
-                )
+                print(f"PDF final salvo em: {caminho_pdf_final}")
 
             except FileExistsError as erro:
-                registrar_ocorrencia(
-                    tipo="ARQUIVO_JA_EXISTE",
-                    matricula=matricula,
-                    nome=nome,
-                    competencia=competencia,
-                    detalhes=str(erro),
-                )
+                registrar_ocorrencia("ARQUIVO_JA_EXISTE", matricula, nome, competencia, str(erro))
+                print(f"O PDF {competencia} já existe. Registrado no log do Azure.")
+            except Exception as erro:
+                registrar_ocorrencia("ERRO_AO_MOVER_PDF", matricula, nome, competencia, str(erro))
+                raise erro
 
-                print(
-                    f"O PDF da competência {competencia} "
-                    "já existe. Ocorrência registrada no log."
-                )
-
-            # Tanto um arquivo novo quanto um arquivo já existente
-            # significam que essa competência está resolvida.
-            registrar_competencia_concluida(
-                df=df,
-                indice=indice,
-                competencia=competencia,
-            )
-
-            salvar_planilha_controle(df)
-
-            print(
-                f"Checkpoint salvo após a competência {competencia}."
-            )
+            ultima_competencia_processada = competencia
 
             eh_ultima_competencia = posicao == total_competencias - 1
-
             if not eh_ultima_competencia:
                 voltar_meses(navegador, 1)
 
-        print(f"Linha {indice} finalizada com sucesso.")
+        print(f"Linha {indice} (Matrícula: {matricula}) finalizada com sucesso de ponta a ponta.")
+        return "CONCLUIDO", ultima_competencia_processada
+
+    except Exception as erro_geral:
+        print(f"Ocorreu um erro no processamento do {matricula}. Fluxo interrompido nesta linha.")
+        registrar_ocorrencia("ERRO_NA_EXECUCAO", matricula, nome, detalhes=str(erro_geral))
+        return "EM ANDAMENTO", (ultima_competencia_processada or demissao)
 
     finally:
         navegador.quit()
         print(f"Navegador fechado para a linha {indice}.")
 
+
 def main():
-    df = ler_planilha_controle()
+    print("Preparando fila de execução com Azure...")
+    df_fila = preparar_fila_execucao()
 
-    validar_colunas_obrigatorias(df)
+    if df_fila.empty:
+        print("Nenhum colaborador pendente na fila. Automação finalizada.")
+        return
 
-    print(f"Quantidade total de linhas na planilha: {len(df)}")
+    print(f"Total de colaboradores na fila de execução: {len(df_fila)}")
 
-    for indice, linha in df.iterrows():
-
-        if not linha_deve_ser_processada(linha):
-            print(
-                f"Linha {indice} já está concluída. "
-                "Pulando para a próxima."
-            )
-            continue
-
-        marcar_linha_em_andamento(
-            df=df,
-            indice=indice
-        )
-
-        salvar_planilha_controle(df)
-
-        print(
-            f"Linha {indice} marcada como EM ANDAMENTO."
-        )
-
+    for indice, linha in df_fila.iterrows():
         try:
-            processar_linha(
-                linha=linha,
-                indice=indice,
-                df=df
-            )
+            novo_status, ultima_competencia = processar_linha(linha, indice)
 
-            marcar_linha_como_concluida(
-                df=df,
-                indice=indice
-            )
+            df_fila.at[indice, 'STATUS'] = novo_status
+            df_fila.at[indice, 'ULTIMA_COMPETENCIA'] = ultima_competencia
 
-            salvar_planilha_controle(df)
+            print(f"Salvando checkpoint da matrícula {linha['MATRICULA']} no Azure Blob...")
+            df_para_salvar = df_fila[['MATRICULA', 'STATUS', 'ULTIMA_COMPETENCIA']]
+            salvar_estado_no_blob(df_para_salvar)
 
-            print(
-                f"Linha {indice} marcada como CONCLUIDO."
-            )
+        except Exception as e:
+            print(f"Erro fatal não tratado no loop principal: {e}")
 
-        except Exception as erro:
-            print("=" * 80)
-            print(f"Erro ao processar linha {indice}.")
-            print(f"Erro: {erro}")
-            print(
-                "A linha permanecerá como EM ANDAMENTO "
-                "para ser retomada posteriormente."
-            )
-            print("=" * 80)
-
-    print("Processamento finalizado.")
+    print("Processamento total finalizado.")
 
 
 if __name__ == "__main__":

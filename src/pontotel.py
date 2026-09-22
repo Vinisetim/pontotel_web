@@ -1,213 +1,141 @@
 import time
+from datetime import date
 
-from selenium.common import TimeoutException
+from selenium.common.exceptions import (
+    StaleElementReferenceException,
+    NoSuchElementException,
+    TimeoutException,
+)
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 
-from config import TEMPO_ESPERA_DOWNLOAD
+from src.config import URL_PONTOTEL, TEMPO_ESPERA_PADRAO, TEMPO_ESPERA_DOWNLOAD
 from src.arquivo import esperar_novo_zip
+from src.logs import registrar_ocorrencia
 
-from src.config import URL_PONTOTEL, TEMPO_ESPERA_PADRAO
 
 def acessar_login(navegador):
     """Acessa a tela inicial de login do pontotel."""
     navegador.get(URL_PONTOTEL)
 
+
 def preencher_email(navegador, email):
     """Preenche o campo e-mail e clica no botão próximo"""
-
     wait = WebDriverWait(navegador, TEMPO_ESPERA_PADRAO)
-
-    campo_email =   wait.until(
-            #essas definições dizem basicamente para aguardar até uma certa condição, no caso é a
-            #visibilidade do input
-            EC.visibility_of_element_located((By.CSS_SELECTOR, "input"))
+    campo_email = wait.until(
+        EC.visibility_of_element_located((By.CSS_SELECTOR, "input"))
     )
-
     campo_email.clear()
     campo_email.send_keys(email)
 
     botao_proximo = wait.until(
-        #aguarda até o botão ser clicavel
         EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Próximo')]"))
     )
-
     botao_proximo.click()
 
 
 def preencher_senha_entrar(navegador, senha):
     """Preenche o campo senha do pontotel e em seguida clica em entrar"""
-
     wait = WebDriverWait(navegador, TEMPO_ESPERA_PADRAO)
-
-    campo_senha= wait.until(
+    campo_senha = wait.until(
         EC.visibility_of_element_located((By.ID, "password"))
     )
-
     campo_senha.clear()
     campo_senha.send_keys(senha)
 
     botao_entrar = wait.until(
         EC.element_to_be_clickable((By.ID, "kc-login"))
     )
-
     botao_entrar.click()
 
+
 def entrar_empregados(navegador):
-    """
-    Acessa Cadastros > Empregados e abre o filtro
-    que inicialmente está configurado como 'somente ativos'.
-    """
-
-    wait = WebDriverWait(
-        navegador,
-        TEMPO_ESPERA_PADRAO
-    )
-
+    """Acessa Cadastros > Empregados e abre o filtro que inicialmente está configurado como 'somente ativos'."""
+    wait = WebDriverWait(navegador, TEMPO_ESPERA_PADRAO)
     print("Abrindo a seção Cadastros...")
 
     botao_cadastros = wait.until(
-        EC.element_to_be_clickable(
-            (
-                By.XPATH,
-                "//li[@id='secao-cadastro']//button"
-            )
-        )
+        EC.element_to_be_clickable((By.XPATH, "//li[@id='secao-cadastro']//button"))
     )
-
     botao_cadastros.click()
     time.sleep(1)
-    print("Seção Cadastros aberta.")
-    print("Acessando Empregados...")
 
+    print("Seção Cadastros aberta. Acessando Empregados...")
     link_empregados = wait.until(
-        EC.element_to_be_clickable(
-            (
-                By.XPATH,
-                "//li[@id='item-empregados']/a"
-            )
-        )
+        EC.element_to_be_clickable((By.XPATH, "//li[@id='item-empregados']/a"))
     )
-
     link_empregados.click()
-
     time.sleep(1)
+
     print("Aguardando a página de empregados carregar...")
-
     filtro_empregados = wait.until(
-        EC.element_to_be_clickable(
-            (
-                By.XPATH,
-                "// label[.// span[normalize-space() = 'mostrar']]"
-            )
-        )
+        EC.element_to_be_clickable((By.XPATH, "// label[.// span[normalize-space() = 'mostrar']]"))
     )
-
     filtro_empregados.click()
-
     print("Filtro 'somente ativos' aberto.")
-
     filtro_empregados.click()
+
     print("Menu suspenso do filtro aberto.")
-
     opcao_todos = wait.until(
-        EC.element_to_be_clickable(
-            (
-                By.XPATH,
-                "//div[@role='option' and @title='todos']"
-            )
-        )
+        EC.element_to_be_clickable((By.XPATH, "//div[@role='option' and @title='todos']"))
     )
-
     opcao_todos.click()
-
     print("Opção 'todos' selecionada.")
     time.sleep(2)
 
+
 def buscar_empregados(navegador, matricula):
-    """
-    Busca o empregado na página Cadastros > Empregados,
-    abre o painel lateral do colaborador e clica no botão
-    verde de folha.
-
-    Pré-condição:
-    - a função entrar_empregados() já foi executada;
-    - o filtro da página já está configurado como "todos".
-    """
-
-    wait = WebDriverWait(
-        navegador,
-        TEMPO_ESPERA_PADRAO
-    )
-
+    """Busca o empregado na página Cadastros > Empregados, abre o painel e clica na folha."""
+    wait = WebDriverWait(navegador, TEMPO_ESPERA_PADRAO)
     matricula = str(matricula).strip()
 
     print(f"Buscando empregado pela matrícula {matricula}...")
     time.sleep(2)
-    # Localiza o input da coluna "empregado".
+
     campo_empregado = wait.until(
         EC.element_to_be_clickable(
-            (
-                By.XPATH,
-                "//div[contains(@class, 'group') "
-                "and .//label[normalize-space()='empregado']]"
-                "//input"
-            )
+            (By.XPATH, "//div[contains(@class, 'group') and .//label[normalize-space()='empregado']]//input")
         )
     )
-
     campo_empregado.click()
     campo_empregado.clear()
+
     if len(matricula) == 3:
         campo_empregado.send_keys("0" + matricula)
-    else: campo_empregado.send_keys(matricula)
+    else:
+        campo_empregado.send_keys(matricula)
 
     print("Matrícula digitada. Aguardando o resultado carregar...")
     time.sleep(1)
-    # O title contém matrícula + nome.
-    # Exemplo: title="1428 Diego De Oliveira Mendonça"
-    if len(matricula) == 3:
-        linha_empregado = wait.until(
-            EC.element_to_be_clickable(
-                (
-                    By.XPATH,
-                    f"//span[@title and "
-                    f"starts-with(normalize-space(@title), '{"0" + matricula} ')]"
+
+    try:
+        if len(matricula) == 3:
+            linha_empregado = wait.until(
+                EC.element_to_be_clickable(
+                    (By.XPATH, f"//span[@title and starts-with(normalize-space(@title), '0{matricula} ')]")
                 )
             )
-        )
-    else:
-        linha_empregado = wait.until(
-            EC.element_to_be_clickable(
-                (
-                    By.XPATH,
-                    f"//span[@title and "
-                    f"starts-with(normalize-space(@title), '{matricula} ')]"
+        else:
+            linha_empregado = wait.until(
+                EC.element_to_be_clickable(
+                    (By.XPATH, f"//span[@title and starts-with(normalize-space(@title), '{matricula} ')]")
                 )
             )
-        )
+        linha_empregado.click()
+    except TimeoutException as erro:
+        registrar_ocorrencia("EMPREGADO_NAO_ENCONTRADO", matricula, detalhes=str(erro))
+        raise ValueError(f"Não foi possível encontrar a matrícula {matricula} na tela de busca.")
 
-    print("Empregado encontrado. Abrindo o painel lateral...")
-
-    linha_empregado.click()
     time.sleep(1)
     print("Painel lateral aberto. Localizando o botão de folha...")
 
     botao_folha = wait.until(
-        EC.presence_of_element_located(
-            (
-                By.XPATH,
-                "//button[.//span[contains(@class, "
-                "'icone-chapado-folha')]]"
-            )
-        )
+        EC.presence_of_element_located((By.XPATH, "//button[.//span[contains(@class, 'icone-chapado-folha')]]"))
     )
 
-    # O botão fica na parte inferior do painel.
-    # O scrollIntoView movimenta o painel rolável até o botão.
     navegador.execute_script(
         """
         arguments[0].scrollIntoView({
@@ -217,194 +145,50 @@ def buscar_empregados(navegador, matricula):
         """,
         botao_folha
     )
-
     time.sleep(1)
 
     print("Clicando no botão verde de folha...")
-
-    navegador.execute_script(
-        "arguments[0].click();",
-        botao_folha
-    )
-
+    navegador.execute_script("arguments[0].click();", botao_folha)
     print("Botão de folha acionado.")
 
-
-
-def clicar_folha(navegador, matricula):
-    """aguarda a tela inicial se carregar e clica no card com o texto 'folha de ponto'"""
-
-    wait = WebDriverWait(navegador, TEMPO_ESPERA_PADRAO)
-
-    card_folha = wait.until(
-        EC.element_to_be_clickable(
-            (
-                By.XPATH, "//div[normalize-space()='Cadastros']"
-            )
-        )
-    )
-    card_folha.click()
-
-    aba_empregados = wait.until(
-        EC.element_to_be_clickable(
-            (
-                By.XPATH,
-                "// a[.// div[normalize-space() = 'Empregados']]"
-            )
-        )
-    )
-
-    aba_empregados.click()
-
-    span_mostrar = wait.until(
-        EC.element_to_be_clickable(
-            (
-                By.XPATH, "//span[contains(normalize-space(), 'somente ativos')]")
-        )
-    )
-
-    span_mostrar.click()
-
-
-    campo_ativo = navegador.switch_to.active_element
-
-    campo_ativo.send_keys(Keys.CONTROL, "a")
-    campo_ativo.send_keys(Keys.BACKSPACE)
-
-    campo_ativo.send_keys(matricula)
-    time.sleep(1)
-    wait.until(
-        EC.presence_of_element_located(
-            (
-                By.XPATH,
-                "//*[contains(normalize-space(), 'todos')]"
-            )
-        )
-    )
-
-    ActionChains(navegador)\
-        .send_keys(Keys.ARROW_DOWN)\
-        .send_keys(Keys.ENTER)\
-        .perform()
-
-
-
-def buscar_empregado(navegador, matricula):
-    """
-    Busca um empregado na aba 'Empregados' usando o campo MATRICULA
-
-    Fluxo no site:
-    1. O campo de empregados já está ativo após clicar na aba empregados.
-    2. Digita a matrícula.
-    3. O dropdown abre.
-    4. A primeira opção é 'todos'.
-    5. Pressiona seta para baixo para selecionar o empregado sugerido.
-    6. Pressiona Enter.
-    7. Clica no botão Buscar.
-    """
-
-    wait = WebDriverWait(navegador, TEMPO_ESPERA_PADRAO)
-
-    campo_ativo = navegador.switch_to.active_element
-
-    campo_ativo.send_keys(Keys.CONTROL, "a")
-    campo_ativo.send_keys(Keys. BACKSPACE)
-
-    campo_ativo.send_keys(matricula)
-    time.sleep(5)
-    wait.until(
-        EC.presence_of_element_located(
-            (
-                By.XPATH,
-                "//*[contains(normalize-space(), 'todos')]"
-            )
-        )
-    )
-
-    ActionChains(navegador)\
-        .send_keys(Keys.ARROW_DOWN)\
-        .send_keys(Keys.ENTER)\
-        .perform()
-
-    botao_buscar = wait.until(
-        EC.element_to_be_clickable(
-            (By.XPATH,
-             "//button[contains(normalize-space(), 'Buscar')]"
-             )
-        )
-    )
-    botao_buscar.click()
-
-from datetime import date
 
 def calcular_diferenca(data_inicial, data_final):
     """Calcula a diferença em meses entre duas datas"""
     return (data_final.year - data_inicial.year) * 12 + (data_final.month - data_inicial.month)
 
-#====================================AQUI===================================================================================
-def voltar_um_mes(ano, mes):
-    """
-    Recebe um ano e mês, e retorna o mês anterior.
-    """
 
+def voltar_um_mes(ano, mes):
+    """Recebe um ano e mês, e retorna o mês anterior."""
     if mes == 1:
         return ano - 1, 12
-
     return ano, mes - 1
 
 
-
 def gerar_competencias_do_periodo(admissao, demissao):
-    """
-    Gera uma lista de competências entre o mês da demissão e o mês da admissão.
-
-    A lista vem em ordem decrescente, porque o site será navegado voltando mês a mês.
-
-    Exemplo:
-    admissao = 07/10/2019
-    demissao = 14/10/2024
-
-    Retorno:
-    [
-        "2024-10",
-        "2024-09",
-        "2024-08",
-        ...
-        "2019-10"
-    ]
-    """
-
+    """Gera uma lista de competências entre o mês da demissão e o mês da admissão."""
     if demissao < admissao:
         raise ValueError("A data de demissão não pode ser anterior à data de admissão.")
 
     ano_atual = demissao.year
     mes_atual = demissao.month
-
     ano_limite = admissao.year
     mes_limite = admissao.month
 
     competencias = []
-
     while True:
         competencia = f"{ano_atual}-{mes_atual:02d}"
         competencias.append(competencia)
 
         if ano_atual == ano_limite and mes_atual == mes_limite:
             break
-
         ano_atual, mes_atual = voltar_um_mes(ano_atual, mes_atual)
 
     return competencias
 
 
 def calcular_periodo_relatorios(admissao, demissao):
-    """calcula as informações para navegar no Pontotel
-    retorna a quantidade de meses até a demissao (que vai ser o número de cliques para voltar)
-    competencia: lista de meses que devem ter relatorio gerado
-    """
-
+    """Calcula as informações para navegar no Pontotel e gerar as competências."""
     data_atual = date.today()
-
     meses_ate_demissao = calcular_diferenca(demissao, data_atual)
 
     if meses_ate_demissao < 0:
@@ -421,50 +205,40 @@ def calcular_periodo_relatorios(admissao, demissao):
 
 def voltar_meses(navegador, quantidade_meses):
     """
-    Clica no botão de voltar mes do pontotel N vezes.
-    Usa o ícone de 'Opções da linha' da tabela como âncora para garantir o carregamento.
+    Clica no botão de voltar mes N vezes.
+    Usa a visibilidade/invisibilidade do menu da tabela como âncora para não clicar rápido demais.
     """
     wait = WebDriverWait(navegador, TEMPO_ESPERA_PADRAO)
-
-    # O seletor baseado na sua imagem: a tag <a> que abre o menu da linha
     xpath_ancora = "//a[@title='Opções da linha']"
 
     for numero_clique in range(quantidade_meses):
-        # 1. Tira uma "foto" do elemento da tabela ATUAL antes de clicar
         try:
             elemento_antigo = navegador.find_element(By.XPATH, xpath_ancora)
-        except:
+        except NoSuchElementException:
             elemento_antigo = None
 
         time.sleep(0.5)
 
         botao_mes_anterior = wait.until(
-            EC.element_to_be_clickable(
-                (By.XPATH, "//*[@aria-label='Mês anterior']")
-            )
+            EC.element_to_be_clickable((By.XPATH, "//*[@aria-label='Mês anterior']"))
         )
         botao_mes_anterior.click()
         print(f"Voltando mês: {numero_clique + 1} de {quantidade_meses}")
 
-        # 2. Aguarda o elemento antigo ser "destruído" pelo site (tela limpando)
         if elemento_antigo:
             try:
                 wait.until(EC.staleness_of(elemento_antigo))
-            except:
+            except TimeoutException:
                 pass
 
-        # 3. Aguarda a NOVA tabela do mês ser desenhada na tela
         wait.until(EC.visibility_of_element_located((By.XPATH, xpath_ancora)))
-
-        # Respiro extra para garantir animações
         time.sleep(0.5)
 
+
 def gerar_relatorio_mes_atual(navegador):
-    """Gerar relatórios do mes atualmente selecionado no pontotel"""
+    """Gera relatórios do mês atualmente selecionado"""
     wait = WebDriverWait(navegador, TEMPO_ESPERA_PADRAO)
 
-    # 1. Trava de segurança: Garante que a tabela está 100% visível ANTES de clicar em gerar
-    # Isso protege principalmente a geração da primeira competência (mês atual)
     xpath_ancora = "//a[@title='Opções da linha']"
     wait.until(EC.visibility_of_element_located((By.XPATH, xpath_ancora)))
 
@@ -472,13 +246,9 @@ def gerar_relatorio_mes_atual(navegador):
         EC.element_to_be_clickable(
             (
                 By.XPATH,
-                "//div["
-                "@aria-label='gerar folha/espelho de ponto' "
-                "and contains(concat(' ', normalize-space(@class), ' '), "
-                "' botao-toolbox ') "
-                "and contains(concat(' ', normalize-space(@class), ' '), "
-                "' icone-chapado-folha ')"
-                "]"
+                "//div[@aria-label='gerar folha/espelho de ponto' "
+                "and contains(concat(' ', normalize-space(@class), ' '), ' botao-toolbox ') "
+                "and contains(concat(' ', normalize-space(@class), ' '), ' icone-chapado-folha ')]"
             )
         )
     )
@@ -486,429 +256,144 @@ def gerar_relatorio_mes_atual(navegador):
     botao_gerar_folha.click()
 
     botao_gerar = wait.until(
-        EC.element_to_be_clickable(
-            (
-                By.XPATH,
-                "//button[.//span[normalize-space()='Gerar']]"
-
-            )
-        )
+        EC.element_to_be_clickable((By.XPATH, "//button[.//span[normalize-space()='Gerar']]"))
     )
     time.sleep(1)
     botao_gerar.click()
 
     botao_ok = wait.until(
-        EC.element_to_be_clickable(
-            (
-                By.XPATH,
-                "//button[normalize-space()='OK']"
-            )
-        )
+        EC.element_to_be_clickable((By.XPATH, "//button[normalize-space()='OK']"))
     )
     time.sleep(0.5)
     botao_ok.click()
 
-def gerar_relatorios_periodo(navegador, competencias):
-    """Gera relatórios mes a mes, partindo do mes de demissao até o mes de admissao"""
-    total_competencias = len(competencias)
-    time.sleep(0.5)
-    for indice, competencia in enumerate(competencias):
-        print(f"Gerando relatório da competencia: {competencia} ({indice + 1}/{total_competencias})")
-        time.sleep(0.5)
-        gerar_relatorio_mes_atual(navegador)
-
-        time.sleep(1)
-
-        ultima_competencia = indice == total_competencias - 1
-
-        if not ultima_competencia:
-            voltar_meses(navegador, 1)
-            time.sleep(1)
-
-def formatar_competencia_para_relatorio(competencia):
-    """
-    Converte uma competência*no formato AAAA-MM
-    para o form*to MM/AAAA usado pelo aria-label.
-    Exemplo:
-        2025-10 -> 10/2025
-    """
-
-    ano, mes = competencia.split("-")
-    competencia_formatada = f"{int(mes)}/{ano}"
-    return competencia_formatada
 
 def abrir_gaveta_relatorios(navegador):
-    """
-    Abre a gaveta lateral de relatórios.
-    """
+    """Abre a gaveta lateral de relatórios."""
     time.sleep(0.5)
-    wait = WebDriverWait(
-        navegador,
-        TEMPO_ESPERA_PADRAO
-    )
+    wait = WebDriverWait(navegador, TEMPO_ESPERA_PADRAO)
 
     botao_gaveta = wait.until(
-        EC.element_to_be_clickable(
-            (
-                By.XPATH,
-                "//li[@id='secao-alertas']//button"
-            )
-        )
+        EC.element_to_be_clickable((By.XPATH, "//li[@id='secao-alertas']//button"))
     )
-
-    navegador.execute_script(
-        "arguments[0].click();",
-        botao_gaveta
-    )
-
+    navegador.execute_script("arguments[0].click();", botao_gaveta)
     print("Gaveta de relatórios aberta.")
 
-def baixar_relatorio_competencia(
-    navegador,
-    posicao,
-    competencia,
-    arquivos_antes,
-    matricula,
-    nome,
-):
-    """
-    Abre a gaveta lateral de relatórios, espera a notificação verde
-    de relatório concluído aparecer e baixa o relatório mais recente.
 
-    Estratégia:
-    - a gaveta lateral precisa estar aberta para a notificação aparecer;
-    - a notificação verde é usada apenas como gatilho;
-    - a automação não clica nem interage com a notificação;
-    - posição 0: mantém o comportamento de download automático;
-    - posição maior que 0: clica no primeiro botão de download da lista;
-    - não busca mais por competência no aria-label;
-    - não depende mais de 9/2025 versus 09/2025;
-    - falha ao fechar a gaveta não encerra o processamento.
-    """
+def baixar_relatorio_competencia(navegador, posicao, competencia, arquivos_antes, matricula, nome):
+    """Lida com a extração visual e download do ZIP da gaveta de relatórios."""
     time.sleep(0.5)
-    from selenium.common.exceptions import (
-        StaleElementReferenceException,
-        NoSuchElementException,
-        TimeoutException,
-    )
-
-    wait_padrao = WebDriverWait(
-        navegador,
-        TEMPO_ESPERA_PADRAO,
-        poll_frequency=0.5,
-        ignored_exceptions=(
-            StaleElementReferenceException,
-            NoSuchElementException,
-        ),
-    )
-
     wait_relatorio = WebDriverWait(
         navegador,
         240,
         poll_frequency=0.5,
-        ignored_exceptions=(
-            StaleElementReferenceException,
-            NoSuchElementException,
-        ),
+        ignored_exceptions=(StaleElementReferenceException, NoSuchElementException)
     )
 
-    wait_fechar = WebDriverWait(
-        navegador,
-        10,
-        poll_frequency=0.5,
-        ignored_exceptions=(
-            StaleElementReferenceException,
-            NoSuchElementException,
-        ),
-    )
-
-    xpath_gaveta = (
-        "//li[@id='secao-alertas']//button"
-    )
-
-    xpath_downloads = (
-        "//*[contains(@aria-label, 'Baixar relatório')]"
-    )
-
-    seletor_notificacao_sucesso = (
-        "#ptt-notifications .alert-success[role='alert'] strong"
-    )
-
-    seletor_fechar = (
-        "button[aria-label='Fechar gaveta']"
-    )
-
-    # 1. Abre a gaveta lateral de relatórios
+    seletor_notificacao_sucesso = "#ptt-notifications .alert-success[role='alert'] strong"
 
     print("Abrindo gaveta de relatórios...")
-
     abrir_gaveta_relatorios(navegador)
     print("Gaveta de relatórios aberta.")
 
-    # 2. Espera a notificação verde aparecer
-
-    print(
-        "Aguardando notificação verde de relatório concluído..."
-    )
+    print("Aguardando notificação verde de relatório concluído...")
 
     def notificacao_relatorio_concluido(driver):
         try:
-            notificacoes = driver.find_elements(
-                By.CSS_SELECTOR,
-                seletor_notificacao_sucesso
-            )
-
+            notificacoes = driver.find_elements(By.CSS_SELECTOR, seletor_notificacao_sucesso)
             for notificacao in notificacoes:
-                try:
-                    if not notificacao.is_displayed():
-                        continue
-
-                    texto = notificacao.text.strip()
-
-                    if not texto:
-                        continue
-
-                    print(
-                        "Notificação de conclusão encontrada:",
-                        texto
-                    )
-
+                if notificacao.is_displayed():
+                    print("Notificação de conclusão encontrada:", notificacao.text.strip())
                     return True
-
-                except StaleElementReferenceException:
-                    continue
-
             return False
-
         except StaleElementReferenceException:
             return False
 
     try:
-        wait_relatorio.until(
-            notificacao_relatorio_concluido
-        )
-
+        wait_relatorio.until(notificacao_relatorio_concluido)
     except TimeoutException as erro:
         raise TimeoutException(
-            "A notificação verde de relatório concluído não apareceu "
-            "dentro do tempo esperado."
-        ) from erro
-
-    print(
-        "Notificação verde detectada. O relatório foi concluído."
-    )
-
-    # 3. Download
+            "A notificação verde de relatório concluído não apareceu dentro do tempo esperado.") from erro
+    print("Notificação verde detectada. O relatório foi concluído.")
 
     if posicao == 0:
-        print(
-            "Primeira competência: mantendo comportamento de "
-            "download automático após abertura da gaveta."
-        )
-
+        print("Primeira competência: mantendo comportamento de download automático após abertura da gaveta.")
     else:
-        print(
-            "Buscando o primeiro relatório da lista de concluídos "
-            "usando a lógica antiga..."
-        )
-
-        xpath_primeiro_relatorio = (
-            "(//div["
-            "contains("
-            "concat(' ', normalize-space(@class), ' '), "
-            "' relatorio '"
-            ")"
-            "])[1]"
-        )
+        print("Buscando o primeiro relatório da lista de concluídos...")
+        xpath_primeiro_relatorio = "(//div[contains(concat(' ', normalize-space(@class), ' '), ' relatorio ')])[1]"
 
         def obter_download_primeiro_relatorio(driver):
-            """
-            Usa a lógica antiga:
-            1. localiza a primeira linha de relatório da gaveta;
-            2. faz hover na primeira linha;
-            3. procura o botão de download dentro dessa linha;
-            4. retorna o botão encontrado.
-
-            Como o Pontotel coloca o relatório mais recente no topo
-            da lista de concluídos, a primeira linha é o item correto.
-            """
-
             try:
-                primeiro_relatorio = driver.find_element(
-                    By.XPATH,
-                    xpath_primeiro_relatorio
-                )
+                primeiro_relatorio = driver.find_element(By.XPATH, xpath_primeiro_relatorio)
+                ActionChains(driver).move_to_element(primeiro_relatorio).pause(0.5).perform()
+                botoes_download = primeiro_relatorio.find_elements(By.XPATH,
+                                                                   ".//*[contains(@aria-label, 'Baixar relatório')]")
 
-                ActionChains(driver) \
-                    .move_to_element(primeiro_relatorio) \
-                    .pause(0.5) \
-                    .perform()
-
-                botoes_download = primeiro_relatorio.find_elements(
-                    By.XPATH,
-                    ".//*[contains(@aria-label, 'Baixar relatório')]"
-                )
-
-                print(
-                    "Quantidade de botões de download na primeira linha:",
-                    len(botoes_download)
-                )
-
-                if not botoes_download:
-                    return False
-
-                for indice, botao_download in enumerate(botoes_download):
-                    try:
-                        aria_label = botao_download.get_attribute(
-                            "aria-label"
-                        )
-
-                        print(
-                            f"Botão candidato {indice}:",
-                            aria_label
-                        )
-
-                        if not aria_label:
-                            continue
-
+                for botao_download in botoes_download:
+                    if botao_download.get_attribute("aria-label"):
                         return botao_download
-
-                    except StaleElementReferenceException:
-                        continue
-
+                return False
+            except (StaleElementReferenceException, NoSuchElementException):
                 return False
 
-            except (
-                    StaleElementReferenceException,
-                    NoSuchElementException,
-            ):
-                return False
         time.sleep(1)
+
         def clicar_download_primeiro_relatorio(driver):
             try:
-                botao_download = obter_download_primeiro_relatorio(
-                    driver
-                )
+                botao_download = obter_download_primeiro_relatorio(driver)
+                if not botao_download: return False
+                botao_download = obter_download_primeiro_relatorio(driver)
+                if not botao_download: return False
 
-                if not botao_download:
-                    return False
-
-                # Rebusca antes do clique, porque o Pontotel pode reconstruir
-                # a linha ou o botão depois do hover.
-                botao_download = obter_download_primeiro_relatorio(
-                    driver
-                )
-
-                if not botao_download:
-                    return False
-
-                aria_label = botao_download.get_attribute(
-                    "aria-label"
-                )
-
-                print(
-                    "Baixando primeiro relatório da lista:",
-                    aria_label
-                )
-
-                driver.execute_script(
-                    "arguments[0].click();",
-                    botao_download
-                )
-
+                print("Baixando primeiro relatório da lista:", botao_download.get_attribute("aria-label"))
+                driver.execute_script("arguments[0].click();", botao_download)
                 return True
-
-            except (
-                    StaleElementReferenceException,
-                    NoSuchElementException,
-            ):
+            except (StaleElementReferenceException, NoSuchElementException):
                 return False
 
         try:
-            WebDriverWait(
-                navegador,
-                TEMPO_ESPERA_DOWNLOAD,
-                poll_frequency=0.5,
-                ignored_exceptions=(
-                    StaleElementReferenceException,
-                    NoSuchElementException,
-                ),
-            ).until(
-                clicar_download_primeiro_relatorio
-            )
-
+            WebDriverWait(navegador, TEMPO_ESPERA_DOWNLOAD, poll_frequency=0.5,
+                          ignored_exceptions=(StaleElementReferenceException, NoSuchElementException)).until(
+                clicar_download_primeiro_relatorio)
         except TimeoutException as erro:
-            raise TimeoutException(
-                "Não foi possível clicar no download do primeiro "
-                "relatório da lista usando a lógica antiga."
-            ) from erro
+            raise TimeoutException("Não foi possível clicar no download do primeiro relatório da lista.") from erro
+        print("Clique no download do primeiro relatório executado.")
 
-        print(
-            "Clique no download do primeiro relatório executado."
-        )
-
-    # 4. Aguarda o ZIP
-
-    print(
-        "Aguardando o arquivo ZIP terminar de baixar..."
-    )
-
-    caminho_zip = esperar_novo_zip(
-        arquivos_antes=arquivos_antes,
-        matricula=matricula,
-        nome=nome,
-        competencia=competencia,
-    )
-
+    print("Aguardando o arquivo ZIP terminar de baixar...")
+    caminho_zip = esperar_novo_zip(arquivos_antes=arquivos_antes, matricula=matricula, nome=nome,
+                                   competencia=competencia)
     print(f"ZIP concluído: {caminho_zip}")
-
-    # 5. Fecha a gaveta
 
     print("Tentando fechar a gaveta de relatórios...")
 
     def fechar_gaveta_robusta(driver):
-        """
-        Fecha a gaveta com 3 níveis de resiliência,
-        incluindo ocultação forçada via JavaScript para garantir a tela limpa.
-        """
         seletor_gaveta = "pontotel-menu-vertical-gaveta-lateral"
 
-        #Tentar clicar no 'X' que está realmente visível
         try:
             botoes_x = driver.find_elements(By.CSS_SELECTOR, "button[aria-label='Fechar gaveta']")
             for botao in botoes_x:
                 if botao.is_displayed():
                     driver.execute_script("arguments[0].click();", botao)
                     break
-
-            # Aguarda a gaveta sumir da tela
-            WebDriverWait(driver, 3).until(
-                EC.invisibility_of_element_located((By.TAG_NAME, seletor_gaveta))
-            )
+            WebDriverWait(driver, 3).until(EC.invisibility_of_element_located((By.TAG_NAME, seletor_gaveta)))
             print("Gaveta fechada no botão X.")
             time.sleep(0.5)
             return True
         except Exception:
-            pass  # Se falhar, engole o erro silenciosamente e vai pro Plano B
+            pass
 
-        #Forçar o fechamento pelo teclado (ESC)
         print("X falhou. Tentando tecla ESC...")
         try:
             ActionChains(driver).send_keys(Keys.ESCAPE).perform()
-
-            WebDriverWait(driver, 3).until(
-                EC.invisibility_of_element_located((By.TAG_NAME, seletor_gaveta))
-            )
+            WebDriverWait(driver, 3).until(EC.invisibility_of_element_located((By.TAG_NAME, seletor_gaveta)))
             print("Gaveta fechada no Plano B (tecla ESC).")
             time.sleep(0.5)
             return True
         except Exception:
             pass
 
-        # Força bruta (Ocultar elemento no HTML)
         print("Removendo a gaveta da tela com JavaScript...")
         try:
-            #remove a visibilidade da janela injetando CSS via JS
             driver.execute_script(
                 """
                 var gavetas = document.getElementsByTagName('pontotel-menu-vertical-gaveta-lateral');
@@ -920,58 +405,49 @@ def baixar_relatorio_competencia(
             time.sleep(0.5)
             print("Gaveta ocultada.")
             return True
-
         except Exception as erro:
             print(f"Erro inesperado no fechamento da gaveta: {erro}")
+            registrar_ocorrencia("FALHA_AO_FECHAR_GAVETA", matricula, nome, competencia, str(erro))
             return False
 
-    # Executa a nossa função robusta
     fechou = fechar_gaveta_robusta(navegador)
-
     if not fechou:
-        print("Aviso: não foi possível fechar a gaveta pelo botão 'X'. O fluxo continuará.")
+        print("Aviso: não foi possível fechar a gaveta de nenhuma forma. O fluxo tentará continuar.")
 
     return caminho_zip
 
+
 def cancelar_relatorio_em_andamento(navegador):
     """
-    Abre a gaveta de relatórios e cancela o primeiro relatório
-    que estiver em andamento e puder ser cancelado.
-
-    Se não houver relatório cancelável, continua normalmente.
+    Cancela o primeiro relatório em andamento se existir para não sobrepor requisições.
     """
     time.sleep(0.5)
-    print("Abrido gaveta relatórios...")
+    print("Abrindo gaveta de relatórios para verificar itens em andamento...")
     abrir_gaveta_relatorios(navegador)
 
     wait = WebDriverWait(navegador, 10)
-
     xpath_botao = "//pontotel-botao[@aria-label='Cancelar geração do relatório']"
 
     try:
-        #Ao inves checar visibilidade ou se é clicavel, vamos verificar a existencia do elemento para usar javascript para clicar nele
         botao_cancelar = wait.until(
             EC.presence_of_element_located((By.XPATH, xpath_botao))
         )
-        print("botão de cancelamento encontrado. Tentando cancelar com javascript.")
-
+        print("Botão de cancelamento encontrado. Injetando clique com JavaScript...")
         navegador.execute_script("arguments[0].click();", botao_cancelar)
 
         botao_ok = wait.until(
             EC.element_to_be_clickable(
-                (
-                By.XPATH,
-                "//button[contains(@class, 'swal2-confirm') and normalize-space()='OK']"
-                )
+                (By.XPATH, "//button[contains(@class, 'swal2-confirm') and normalize-space()='OK']")
             )
         )
         time.sleep(0.5)
         botao_ok.click()
-
-        print("Relatório em andamento canceledo com sucesso.")
+        print("Relatório em andamento cancelado com sucesso.")
         return True
 
     except TimeoutException:
-        print("Nenhum relatório em andamento cancelavel foi encontrado.")
+        print("Nenhum relatório em andamento cancelável foi encontrado.")
         return False
-    
+    except Exception as e:
+        registrar_ocorrencia("ERRO_CANCELAR_RELATORIO", matricula="N/A", detalhes=str(e))
+        return False
