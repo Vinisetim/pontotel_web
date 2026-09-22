@@ -68,13 +68,9 @@ def esperar_novo_zip(
     competencia=None,
 ):
     """
-    Aguarda o download de um novo arquivo ZIP.
+    Aguarda um novo ZIP aparecer na pasta de downloads.
 
-    Comportamento:
-    - enquanto existir arquivo temporário, continua aguardando;
-    - quando surgir um ZIP sem arquivo temporário, aguarda estabilidade;
-    - se o download finalizar com outra extensão, registra ocorrência;
-    - se o tempo limite for excedido, gera TimeoutError.
+    Se timeout=None, aguarda sem limite de tempo.
     """
 
     tempo_inicial = time.time()
@@ -84,6 +80,8 @@ def esperar_novo_zip(
         ".part",
         ".tmp",
     }
+
+    ultima_mensagem = 0
 
     while True:
         arquivos_agora = set(
@@ -117,22 +115,21 @@ def esperar_novo_zip(
             )
         ]
 
-        # Enquanto houver arquivo temporário, o download
-        # ainda não terminou. Recomeça a verificação.
         if arquivos_temporarios:
-            nomes_temporarios = [
-                arquivo.name
-                for arquivo in arquivos_temporarios
-            ]
+            if time.time() - ultima_mensagem >= 30:
+                print(
+                    "Download ainda em andamento:",
+                    [
+                        arquivo.name
+                        for arquivo in arquivos_temporarios
+                    ],
+                )
 
-            print(
-                "Download ainda em andamento:",
-                nomes_temporarios,
-            )
+                ultima_mensagem = time.time()
 
             if (
-                time.time() - tempo_inicial
-                > timeout
+                timeout is not None
+                and time.time() - tempo_inicial > timeout
             ):
                 raise TimeoutError(
                     "Tempo excedido aguardando o download "
@@ -142,8 +139,6 @@ def esperar_novo_zip(
             time.sleep(2)
             continue
 
-        # Se existe ZIP e não há temporários, o navegador
-        # terminou de atribuir a extensão final.
         if arquivos_zip_novos:
             zip_baixado = max(
                 arquivos_zip_novos,
@@ -163,8 +158,6 @@ def esperar_novo_zip(
 
             return zip_baixado
 
-        # Se não há temporário nem ZIP, mas há algum novo
-        # arquivo, o download terminou com extensão inesperada.
         if arquivos_nao_zip:
             arquivo_invalido = max(
                 arquivos_nao_zip,
@@ -200,17 +193,19 @@ def esperar_novo_zip(
             )
 
         if (
-            time.time() - tempo_inicial
-            > timeout
+            timeout is not None
+            and time.time() - tempo_inicial > timeout
         ):
             raise TimeoutError(
-                "Tempo excedido esperando um novo "
-                "arquivo ZIP ser baixado."
+                "Tempo excedido esperando um novo arquivo ZIP ser baixado."
             )
 
-        print(
-            "Aguardando o download começar..."
-        )
+        if time.time() - ultima_mensagem >= 30:
+            print(
+                "Aguardando o download começar..."
+            )
+
+            ultima_mensagem = time.time()
 
         time.sleep(2)
 
