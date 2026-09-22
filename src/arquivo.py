@@ -197,8 +197,7 @@ def esperar_novo_zip(
             and time.time() - tempo_inicial > timeout
         ):
             raise TimeoutError(
-                "Tempo excedido esperando um novo "
-                "arquivo ZIP ser baixado."
+                "Tempo excedido esperando um novo arquivo ZIP ser baixado."
             )
 
         if time.time() - ultima_mensagem >= 30:

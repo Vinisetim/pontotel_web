@@ -60,8 +60,6 @@ def entrar_empregados(navegador):
     """
     Acessa Cadastros > Empregados e abre o filtro
     que inicialmente está configurado como 'somente ativos'.
-
-    Esta função ainda não seleciona a opção 'todos'.
     """
 
     wait = WebDriverWait(
@@ -343,7 +341,7 @@ def calcular_diferenca(data_inicial, data_final):
     """Calcula a diferença em meses entre duas datas"""
     return (data_final.year - data_inicial.year) * 12 + (data_final.month - data_inicial.month)
 
-
+#====================================AQUI===================================================================================
 def voltar_um_mes(ano, mes):
     """
     Recebe um ano e mês, e retorna o mês anterior.
@@ -460,7 +458,6 @@ def voltar_meses(navegador, quantidade_meses):
 
         # Respiro extra para garantir animações
         time.sleep(0.5)
-
 
 def gerar_relatorio_mes_atual(navegador):
     """Gerar relatórios do mes atualmente selecionado no pontotel"""

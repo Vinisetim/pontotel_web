@@ -57,10 +57,12 @@ def validar_colunas_obrigatorias(df):
         )
 
 def normalizar_status_automacao(valor):
-    """Normaliza o valor da coluna automacao.
+    """
+    Normaliza o valor da coluna automacao.
     true -> CONCLUIDO
     false -> PENDENTE
-    Vazio ou NaN -> PENDENTE"""
+    Vazio ou NaN -> PENDENTE
+    """
 
     if pd.isna(valor):
         return valor
