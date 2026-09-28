@@ -26,17 +26,23 @@ def processar_linha(linha, indice):
     email = "denise.soares@jtptransportes.com.br"
     senha = "Denny3129@"
 
-    # Consumindo as colunas que foram normalizadas no controle.py
     matricula = str(linha["MATRICULA"]).strip()
     nome = str(linha["NOME"]).strip()
     admissao = linha["ADMISSAO"]
-    demissao = linha["DEMISSAO"]  # O controle.py já definiu se é a data real ou a ultima competência
+
+    # Esta data sofre alteração durante o andamento (retrocede a cada mês feito)
+    demissao_ponto_partida = linha["DEMISSAO"]
+
+    # Esta é a data original real em que a pessoa foi demitida (usada para achar a pasta)
+    data_desligamento_real = linha["DESLIGAMENTO"]
+
     local = str(linha["LOCAL"]).strip()
 
     print("=" * 80)
     print(f"Iniciando linha {indice} (Prioridade {linha['PRIORIDADE_PESO']})")
     print(f"Matrícula: {matricula} | Nome: {nome}")
-    print(f"Ponto de Partida: {demissao.strftime('%m/%Y')} | Admissão: {admissao.strftime('%m/%Y')}")
+    print(f"Ponto de Partida: {demissao_ponto_partida.strftime('%m/%Y')} | Admissão: {admissao.strftime('%m/%Y')}")
+    print(f"Data Efetiva de Desligamento: {data_desligamento_real.strftime('%d/%m/%Y')}")
     print("=" * 80)
 
     navegador = criar_navegador()
@@ -49,7 +55,7 @@ def processar_linha(linha, indice):
         cancelar_relatorio_em_andamento(navegador)
         entrar_empregados(navegador)
 
-        periodo = calcular_periodo_relatorios(admissao=admissao, demissao=demissao)
+        periodo = calcular_periodo_relatorios(admissao=admissao, demissao=demissao_ponto_partida)
 
         print(f"Meses a retroceder: {periodo['meses_ate_demissao']}")
         print(f"Quantidade de relatórios: {periodo['quantidade_relatorios']}")
@@ -79,13 +85,14 @@ def processar_linha(linha, indice):
             )
 
             try:
+                # O processar agora recebe a data real para calcular a rota
                 caminho_pdf_final = processar_zip_relatorio(
                     caminho_zip=caminho_zip,
                     matricula=matricula,
                     nome=nome,
                     competencia=competencia,
                     local=local,
-                    status='2_Desligados'
+                    data_desligamento=data_desligamento_real
                 )
                 print(f"PDF final salvo em: {caminho_pdf_final}")
 
@@ -108,13 +115,11 @@ def processar_linha(linha, indice):
     except Exception as erro_geral:
         print(f"Ocorreu um erro no processamento do {matricula}. Fluxo interrompido nesta linha.")
         registrar_ocorrencia("ERRO_NA_EXECUCAO", matricula, nome, detalhes=str(erro_geral))
-        return "EM ANDAMENTO", (ultima_competencia_processada or demissao)
+        return "EM ANDAMENTO", (ultima_competencia_processada or demissao_ponto_partida)
 
     finally:
         navegador.quit()
         print(f"Navegador fechado para a linha {indice}.")
-
-
 def main():
     print("Preparando fila de execução com Azure...")
     df_fila = preparar_fila_execucao()
