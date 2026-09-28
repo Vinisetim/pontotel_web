@@ -22,7 +22,10 @@ from src.arquivo import (
 
 
 def processar_linha(linha, indice):
-    """Processa uma única linha do DataFrame da fila de execução."""
+    """
+    Processa uma única linha do DataFrame da fila de execução.
+    Controla o login, geração de relatórios e salva a posição de parada em caso de erro.
+    """
     email = "denise.soares@jtptransportes.com.br"
     senha = "Denny3129@"
 
@@ -55,13 +58,13 @@ def processar_linha(linha, indice):
         cancelar_relatorio_em_andamento(navegador)
         entrar_empregados(navegador)
 
+        # O cálculo do período de navegação no site continua usando o ponto de partida dinâmico
         periodo = calcular_periodo_relatorios(admissao=admissao, demissao=demissao_ponto_partida)
 
         print(f"Meses a retroceder: {periodo['meses_ate_demissao']}")
         print(f"Quantidade de relatórios: {periodo['quantidade_relatorios']}")
 
         buscar_empregados(navegador, matricula)
-
         voltar_meses(navegador, quantidade_meses=periodo["meses_ate_demissao"])
 
         competencias = periodo["competencias"]
@@ -72,7 +75,6 @@ def processar_linha(linha, indice):
             print(f"Gerando competência {competencia} ({posicao + 1}/{total_competencias})")
 
             arquivos_antes = obter_arquivos_atuais_download()
-
             gerar_relatorio_mes_atual(navegador)
 
             caminho_zip = baixar_relatorio_competencia(
@@ -85,7 +87,7 @@ def processar_linha(linha, indice):
             )
 
             try:
-                # O processar agora recebe a data real para calcular a rota
+                # O arquivo.py recebe a data real para criar a rota /2026/09/desligados/
                 caminho_pdf_final = processar_zip_relatorio(
                     caminho_zip=caminho_zip,
                     matricula=matricula,
@@ -103,6 +105,7 @@ def processar_linha(linha, indice):
                 registrar_ocorrencia("ERRO_AO_MOVER_PDF", matricula, nome, competencia, str(erro))
                 raise erro
 
+            # Registra que este mês foi um sucesso
             ultima_competencia_processada = competencia
 
             eh_ultima_competencia = posicao == total_competencias - 1
@@ -115,7 +118,13 @@ def processar_linha(linha, indice):
     except Exception as erro_geral:
         print(f"Ocorreu um erro no processamento do {matricula}. Fluxo interrompido nesta linha.")
         registrar_ocorrencia("ERRO_NA_EXECUCAO", matricula, nome, detalhes=str(erro_geral))
-        return "EM ANDAMENTO", (ultima_competencia_processada or demissao_ponto_partida)
+
+        # O bloco abaixo é o que impede o erro "Invalid value for dtype 'str'".
+        # Se nenhuma competência foi feita (erro ao logar ou buscar funcionário),
+        # formatamos a data do Pandas (Timestamp) para texto (AAAA-MM) antes de salvar no CSV.
+        fallback_competencia = demissao_ponto_partida.strftime('%Y-%m')
+
+        return "EM ANDAMENTO", (ultima_competencia_processada or fallback_competencia)
 
     finally:
         navegador.quit()

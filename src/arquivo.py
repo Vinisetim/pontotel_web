@@ -13,8 +13,23 @@ from src.config import (
 )
 from src.logs import registrar_ocorrencia
 
+# Mapeamento EXATO das unidades (Padrão: NEGÓCIO | UNIDADE)
+MAPA_UNIDADES = {
+    "ESCOLAR | BRAGANÇA PAULISTA": "braganca_paulista_escolar",
+    "ESCOLAR | BARUERI": "barueri_escolar",
+    "ESCOLAR | EMBU DAS ARTES": "embu_das_artes_escolar",
+    "ESCOLAR | EMBU": "embu_das_artes_escolar",  # Variação curta
+    "ESCOLAR | EMBU GUAÇU": "embu_guacu_escolar",
+    "ESCOLAR | ITAPECERICA DA SERRA": "itapecerica_da_serra_escolar",
+    "ESCOLAR | OSASCO": "osasco_escolar",
+    "COM | EMBU DAS ARTES": "embu_das_artes_coletivo",
+    "COM | EMBU": "embu_das_artes_coletivo",  # Variação curta
+    "COM | BRAGANÇA PAULISTA": "braganca_paulista_coletivo",
+    "COM | PORTO VELHO": "porto_velho_coletivo"
+}
+
+
 def normalzar_nome_arquivo(texto):
-    """Normaliza um texto para que possa ser usado de nome de arquivo"""
     texto = str(texto).strip().upper()
     texto = unicodedata.normalize("NFKD", texto)
     texto = texto.encode("ASCII", "ignore").decode("ASCII")
@@ -23,89 +38,91 @@ def normalzar_nome_arquivo(texto):
     texto = re.sub(r"_+", "_", texto)
     return texto.strip("_")
 
+
+def limpar_nome_pasta(texto):
+    """Limpa o nome removendo caracteres inválidos para diretórios, mas preserva os espaços."""
+    texto = str(texto).strip().upper()
+    texto = unicodedata.normalize("NFKD", texto)
+    texto = texto.encode("ASCII", "ignore").decode("ASCII")
+    texto = re.sub(r'[\\/:*?"<>|]', "", texto)
+    return texto.strip()
+
+
 def obter_arquivos_atuais_download():
-    """Retorna conjuto de arquivos existentes na pasta downloads"""
     return set(PASTA_DOWNLOADS.glob("*"))
 
+
 def esperar_arquivo_estavel(caminho_arquivo, timeout=60, intervalo=1):
-    """Aguarda até que o arquivo pare de mudar de tamanho."""
     tempo_inicial = time.time()
     tamanho_anterior = -1
-
     while True:
         if not caminho_arquivo.exists():
             time.sleep(intervalo)
             continue
-
         tamanho_atual = caminho_arquivo.stat().st_size
         if tamanho_atual == tamanho_anterior and tamanho_atual > 0:
             return caminho_arquivo
-
         tamanho_anterior = tamanho_atual
         if time.time() - tempo_inicial > timeout:
-            raise TimeoutError(f"Arquivo não estabilizou dentro do tempo limite: {caminho_arquivo}")
+            raise TimeoutError(f"Arquivo não estabilizou: {caminho_arquivo}")
         time.sleep(intervalo)
 
+
 def esperar_novo_zip(arquivos_antes, timeout=TEMPO_ESPERA_DOWNLOAD, matricula=None, nome=None, competencia=None):
-    """Aguarda um novo ZIP aparecer na pasta de downloads."""
     tempo_inicial = time.time()
     extensoes_temporarias = {".crdownload", ".part", ".tmp"}
     ultima_mensagem = 0
-
     while True:
         arquivos_agora = set(PASTA_DOWNLOADS.glob("*"))
         arquivos_novos = arquivos_agora - arquivos_antes
 
         arquivos_temporarios = [arq for arq in arquivos_novos if arq.suffix.lower() in extensoes_temporarias]
         arquivos_zip_novos = [arq for arq in arquivos_novos if arq.suffix.lower() == ".zip"]
-        arquivos_nao_zip = [arq for arq in arquivos_novos if arq.suffix.lower() not in extensoes_temporarias and arq.suffix.lower() != ".zip"]
+        arquivos_nao_zip = [arq for arq in arquivos_novos if
+                            arq.suffix.lower() not in extensoes_temporarias and arq.suffix.lower() != ".zip"]
 
         if arquivos_temporarios:
             if time.time() - ultima_mensagem >= 30:
-                print("Download ainda em andamento:", [arq.name for arq in arquivos_temporarios])
+                print("Download ainda em andamento...")
                 ultima_mensagem = time.time()
             if timeout is not None and time.time() - tempo_inicial > timeout:
-                raise TimeoutError("Tempo excedido aguardando o download temporário ser concluído.")
+                raise TimeoutError("Tempo excedido aguardando o download temporário.")
             time.sleep(2)
             continue
 
         if arquivos_zip_novos:
             zip_baixado = max(arquivos_zip_novos, key=lambda arquivo: arquivo.stat().st_mtime)
             esperar_arquivo_estavel(zip_baixado)
-            print(f"Arquivo ZIP identificado: {zip_baixado}")
             return zip_baixado
 
         if arquivos_nao_zip:
             arquivo_invalido = max(arquivos_nao_zip, key=lambda arquivo: arquivo.stat().st_mtime)
             esperar_arquivo_estavel(arquivo_invalido)
-            mensagem_erro = f"O download foi concluído, mas o arquivo gerado não é ZIP. Arquivo encontrado: {arquivo_invalido}"
-            registrar_ocorrencia("ARQUIVO_BAIXADO_NAO_ZIP", matricula=(matricula if matricula is not None else "NAO_INFORMADA"), nome=nome, competencia=competencia, detalhes=mensagem_erro)
+            mensagem_erro = f"Arquivo baixado não é ZIP: {arquivo_invalido}"
+            registrar_ocorrencia("ARQUIVO_BAIXADO_NAO_ZIP", matricula=matricula, nome=nome, competencia=competencia,
+                                 detalhes=mensagem_erro)
             raise FileNotFoundError(mensagem_erro)
 
         if timeout is not None and time.time() - tempo_inicial > timeout:
-            raise TimeoutError("Tempo excedido esperando um novo arquivo ZIP ser baixado.")
-
-        if time.time() - ultima_mensagem >= 30:
-            print("Aguardando o download começar...")
-            ultima_mensagem = time.time()
+            raise TimeoutError("Tempo excedido esperando um novo arquivo ZIP.")
 
         time.sleep(2)
 
+
 def limpar_pasta_processamento():
-    """Limpa a pasta de processamento antes de extrair um novo ZIP."""
     if PASTA_PROCESSAMENTO.exists():
         shutil.rmtree(PASTA_PROCESSAMENTO)
     PASTA_PROCESSAMENTO.mkdir(parents=True, exist_ok=True)
 
+
 def extrair_zip(caminho_zip):
-    """Extrai zip baixado para a pasta de processamento"""
     limpar_pasta_processamento()
     with zipfile.ZipFile(caminho_zip, "r") as arquivo_zip:
         arquivo_zip.extractall(PASTA_PROCESSAMENTO)
     return PASTA_PROCESSAMENTO
 
+
 def localizar_pdf_extraido(pasta_extraida):
-    """Localiza o PDF extraido do ZIP"""
     arquivos_pdf = list(Path(pasta_extraida).rglob("*.pdf"))
     if not arquivos_pdf:
         raise FileNotFoundError("Nenhum arquivo PDF dentro do zip")
@@ -113,116 +130,70 @@ def localizar_pdf_extraido(pasta_extraida):
         raise ValueError("Mais de 1 PDF encontrado dentro do zip")
     return arquivos_pdf[0]
 
-def interpretar_local(local):
-    """Interpreta o valor da coluna LOCAL da planilha para separar Negócio e Unidade."""
-    local = str(local).strip()
-    if local.upper() == "MATRIZ":
-        return "Matriz", None
 
-    if "|" not in local:
-        raise ValueError(f"Valor inválido na coluna LOCAL. Esperado formato 'TIPO | UNIDADE': {local}")
+def obter_pasta_unidade(local_csv):
+    """Mapeia a coluna do CSV diretamente para a pasta da unidade correspondente."""
+    # O .upper() garante que independentemente de vir 'com' ou 'COM', será comparado em maiúsculo
+    # O re.sub padroniza qualquer espaçamento estranho ao redor da barra vertical (pipe)
+    local_limpo = re.sub(r'\s*\|\s*', ' | ', str(local_csv).upper().strip())
 
-    tipo, unidade = local.split("|", 1)
-    tipo = tipo.strip().upper()
-    unidade = unidade.strip()
+    if "MATRIZ" in local_limpo:
+        return "Matriz"
 
-    if "MATRIZ" in tipo:
-        negocio = "Matriz"
-    elif "COM" in tipo:
-        negocio = "Coletivo"
-    else:
-        negocio = "Escolar"
-    return negocio, unidade
+    pasta = MAPA_UNIDADES.get(local_limpo)
 
-MAPA_PASTAS_UNIDADE = {
-    "Coletivo": {
-        "EMBU DAS ARTES": "Embu_das_Artes_Coletivo",
-        "PORTO VELHO": "Porto_Velho",
-        "BRAGANCA PAULISTA": "Braganca_Paulista_Coletivo",
-        "BRAGANÇA PAULISTA": "Braganca_Paulista_Coletivo",
-    },
-    "Escolar": {
-        "BARUERI": "Barueri",
-        "BRAGANCA PAULISTA": "Braganca_Paulista_Escolar",
-        "BRAGANÇA PAULISTA": "Braganca_Paulista_Escolar",
-        "EMBU DAS ARTES": "Embu_das_Artes_Escolar",
-        "EMBU GUACU": "Embu_Guaçu",
-        "EMBU GUAÇU": "Embu_Guaçu",
-        "ITAPECERICA DA SERRA": "Itapecerica_da_Serra",
-        "OSASCO": "Osasco",
-    }
-}
+    # Fallback de segurança ignorando acentuação (ex: 'GUACU' vs 'GUAÇU')
+    if not pasta:
+        local_sem_acento = unicodedata.normalize('NFKD', local_limpo).encode('ASCII', 'ignore').decode('ASCII')
+        for key, value in MAPA_UNIDADES.items():
+            key_sem_acento = unicodedata.normalize('NFKD', key).encode('ASCII', 'ignore').decode('ASCII')
+            if key_sem_acento == local_sem_acento:
+                return value
+        raise ValueError(f"Unidade não mapeada no dicionário: '{local_csv}'")
 
-def normalizar_chave_mapa(texto):
-    """Normaliza um texto para ser usado como chave no mapa de unidades."""
-    texto = str(texto).strip().upper()
-    texto = unicodedata.normalize("NFKD", texto)
-    texto = texto.encode("ASCII", "ignore").decode("ASCII")
-    texto = re.sub(r"\s+", " ", texto)
-    return texto.strip()
+    return pasta
 
-def obter_nome_pasta_unidade(negocio, unidade):
-    """Retorna o nome real da pasta da unidade dentro do SharePoint."""
-    chave_unidade = normalizar_chave_mapa(unidade)
-    mapa_negocio = MAPA_PASTAS_UNIDADE.get(negocio)
-
-    if not mapa_negocio:
-        raise ValueError(f"Negócio não mapeado: {negocio}")
-
-    nome_pasta = mapa_negocio.get(chave_unidade)
-    if not nome_pasta:
-        raise ValueError(f"Unidade não mapeada para o negócio {negocio}: {unidade}")
-
-    return nome_pasta
 
 def montar_caminho_base_desligamento(local, data_desligamento):
-    """
-    Monta o caminho base dinâmico até a pasta de desligamentos.
-    Estrutura: raiz / unidade-negocio / ano(YYYY) / mes(MM) / desligamentos
-    """
-    negocio, unidade = interpretar_local(local)
-
-    if negocio == "Matriz":
-        pasta_unidade = "Matriz"
-    else:
-        pasta_unidade = obter_nome_pasta_unidade(negocio=negocio, unidade=unidade)
-
-    # O strftime extrai o Ano e o Mês formatados com base na data real da demissão.
+    """Monta a nova estrutura dinâmica: raiz / unidade / ano(YYYY) / mes(MM) / desligados"""
+    pasta_unidade = obter_pasta_unidade(local)
     ano = data_desligamento.strftime("%Y")
     mes = data_desligamento.strftime("%m")
 
-    # Constroi o caminho usando as barras nativas da biblioteca Path do Python
-    return PASTA_SHAREPOINT_ARQUIVO / pasta_unidade / ano / mes / "desligamentos"
+    return PASTA_SHAREPOINT_ARQUIVO / pasta_unidade / ano / mes / "desligados"
 
-def localizar_pasta_colaborador(caminho_base, matricula):
-    """Localiza a pasta do colaborador usando o padrão 00[matricula]*"""
+
+def localizar_pasta_colaborador(caminho_base, matricula, nome):
+    """Busca a pasta do colaborador. Se não for encontrada (ex: cortes pré-2022), cria a estrutura completa."""
     matricula = str(matricula).strip()
     matricula_formatada = matricula.zfill(6)
     padrao_busca = f"{matricula_formatada}*"
 
     pastas_encontradas = [caminho for caminho in caminho_base.glob(padrao_busca) if caminho.is_dir()]
 
-    if not pastas_encontradas:
-        mensagem_erro = f"Nenhuma pasta encontrada para a matrícula {matricula} em {caminho_base}"
-        registrar_ocorrencia(tipo="PASTA_NAO_ENCONTRADA", matricula=matricula, detalhes=mensagem_erro)
-        raise FileNotFoundError(mensagem_erro)
+    if pastas_encontradas:
+        if len(pastas_encontradas) > 1:
+            raise ValueError(f"Múltiplas pastas encontradas para {matricula}: {pastas_encontradas}")
+        return pastas_encontradas[0]
 
-    if len(pastas_encontradas) > 1:
-        raise ValueError(f"Mais de uma pasta encontrada para a matrícula {matricula}: {pastas_encontradas}")
+    # Criação Autónoma: se o caminho ou a pasta não existir, cria a árvore de pastas
+    nome_limpo = limpar_nome_pasta(nome)
+    nome_pasta_nova = f"{matricula_formatada} - {nome_limpo}"
+    nova_pasta = caminho_base / nome_pasta_nova
 
-    return pastas_encontradas[0]
+    nova_pasta.mkdir(parents=True, exist_ok=True)
+    print(f"Estrutura ausente detectada. Nova árvore de diretórios criada: {nova_pasta}")
+
+    return nova_pasta
+
 
 def obter_pasta_espelho_ponto(pasta_colaborador):
-    """Cria ou retorna a pasta 'Espelho de Ponto Pontotel'."""
     pasta_espelho = pasta_colaborador / "Espelho de Ponto Pontotel"
     pasta_espelho.mkdir(parents=True, exist_ok=True)
     return pasta_espelho
 
-def mover_pdf_para_pasta_espelho(caminho_pdf, pasta_espelho, matricula, nome, competencia):
-    """Renomeia e move o PDF extraído."""
-    matricula_normalizada = normalzar_nome_arquivo(matricula)
-    nome_normalizado = normalzar_nome_arquivo(nome)
 
+def mover_pdf_para_pasta_espelho(caminho_pdf, pasta_espelho, matricula, nome, competencia):
     nome_arquivo_final = f"{competencia}.pdf"
     caminho_final = pasta_espelho / nome_arquivo_final
 
@@ -232,12 +203,8 @@ def mover_pdf_para_pasta_espelho(caminho_pdf, pasta_espelho, matricula, nome, co
     shutil.move(str(caminho_pdf), str(caminho_final))
     return caminho_final
 
+
 def processar_zip_relatorio(caminho_zip, matricula, nome, competencia, local, data_desligamento):
-    """
-    Função principal que orquestra a localização das pastas dinâmicas,
-    extração do ZIP e a movimentação final do arquivo de ponto.
-    """
-    # Usamos a nova função que calcula a rota com base na data do evento
     caminho_base = montar_caminho_base_desligamento(
         local=local,
         data_desligamento=data_desligamento
@@ -245,7 +212,8 @@ def processar_zip_relatorio(caminho_zip, matricula, nome, competencia, local, da
 
     pasta_colaborador = localizar_pasta_colaborador(
         caminho_base=caminho_base,
-        matricula=matricula
+        matricula=matricula,
+        nome=nome
     )
 
     pasta_espelho = obter_pasta_espelho_ponto(pasta_colaborador=pasta_colaborador)
