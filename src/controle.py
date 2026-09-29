@@ -72,6 +72,7 @@ def preparar_fila_execucao():
     """
     blob_client = obter_cliente_blob()
 
+    sincronizar_log_local_com_nuvem()
     # 1. Carrega o Mestre atual
     df_mestre = carregar_mestre_do_blob(blob_client)
 
