@@ -2,7 +2,7 @@ import time
 
 from src.browser import criar_navegador
 from src.logs import registrar_ocorrencia
-from src.controle import preparar_fila_execucao, salvar_estado_no_blob
+from src.controle import preparar_fila_execucao
 from src.pontotel import (
     acessar_login,
     preencher_email,
@@ -129,8 +129,10 @@ def processar_linha(linha, indice):
     finally:
         navegador.quit()
         print(f"Navegador fechado para a linha {indice}.")
+
+
 def main():
-    print("Preparando fila de execução com Azure...")
+    print("Preparando fila de execução e Arquivo Mestre Local...")
     df_fila = preparar_fila_execucao()
 
     if df_fila.empty:
@@ -143,18 +145,21 @@ def main():
         try:
             novo_status, ultima_competencia = processar_linha(linha, indice)
 
-            df_fila.at[indice, 'STATUS'] = novo_status
-            df_fila.at[indice, 'ULTIMA_COMPETENCIA'] = ultima_competencia
-
-            print(f"Salvando checkpoint da matrícula {linha['MATRICULA']} no Azure Blob...")
-            df_para_salvar = df_fila[['MATRICULA', 'STATUS', 'ULTIMA_COMPETENCIA']]
-            salvar_estado_no_blob(df_para_salvar)
+            # Usa a nova função que escreve no CSV Mestre local
+            from src.controle import atualizar_log_local
+            print(f"Atualizando CSV local para a matrícula {linha['MATRICULA']}...")
+            atualizar_log_local(linha['MATRICULA'], novo_status, ultima_competencia)
 
         except Exception as e:
             print(f"Erro fatal não tratado no loop principal: {e}")
 
-    print("Processamento total finalizado.")
+    # Ao terminar o loop completo, ele roda uma última vez a sincronização
+    # para não precisar esperar o dia seguinte para atualizar a nuvem.
+    from src.controle import sincronizar_log_local_com_nuvem
+    print("Enviando resultado final da execução de hoje para o Azure...")
+    sincronizar_log_local_com_nuvem()
 
+    print("Processamento total finalizado.")
 
 if __name__ == "__main__":
     main()
