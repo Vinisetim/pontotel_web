@@ -420,13 +420,17 @@ def baixar_relatorio_competencia(navegador, posicao, competencia, arquivos_antes
 def cancelar_relatorio_em_andamento(navegador):
     """
     Cancela o primeiro relatório em andamento se existir para não sobrepor requisições.
+    Garante o fechamento da gaveta no final.
     """
     time.sleep(0.5)
     print("Abrindo gaveta de relatórios para verificar itens em andamento...")
     abrir_gaveta_relatorios(navegador)
 
-    wait = WebDriverWait(navegador, 10)
-    xpath_botao = "//pontotel-botao[@aria-label='Cancelar geração do relatório']"
+    # 5 segundos é mais que suficiente para o botão aparecer se ele existir
+    wait = WebDriverWait(navegador, 5)
+
+    # CORREÇÃO: Usando a tag <button> conforme o HTML do sistema
+    xpath_botao = "//button[@aria-label='Cancelar geração do relatório']"
 
     try:
         botao_cancelar = wait.until(
@@ -442,12 +446,20 @@ def cancelar_relatorio_em_andamento(navegador):
         )
         time.sleep(0.5)
         botao_ok.click()
+        time.sleep(0.5)
         print("Relatório em andamento cancelado com sucesso.")
-        return True
 
     except TimeoutException:
         print("Nenhum relatório em andamento cancelável foi encontrado.")
-        return False
     except Exception as e:
         registrar_ocorrencia("ERRO_CANCELAR_RELATORIO", matricula="N/A", detalhes=str(e))
-        return False
+    finally:
+        # Tenta fechar a gaveta independentemente de ter cancelado algo ou não
+        print("Fechando a gaveta de relatórios...")
+        try:
+            botao_fechar = navegador.find_element(By.CSS_SELECTOR, "button[aria-label='Fechar gaveta']")
+            navegador.execute_script("arguments[0].click();", botao_fechar)
+        except:
+            # Fallback seguro com a tecla ESC
+            ActionChains(navegador).send_keys(Keys.ESCAPE).perform()
+        time.sleep(1)

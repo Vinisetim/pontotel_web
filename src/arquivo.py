@@ -13,7 +13,7 @@ from src.config import (
 )
 from src.logs import registrar_ocorrencia
 
-# Mapeamento EXATO das unidades (Padrão: NEGÓCIO | UNIDADE)
+
 MAPA_UNIDADES = {
     "ESCOLAR | BRAGANÇA PAULISTA": "braganca_paulista_escolar",
     "ESCOLAR | BARUERI": "barueri_escolar",

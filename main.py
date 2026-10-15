@@ -56,6 +56,7 @@ def processar_linha(linha, indice):
         preencher_email(navegador, email)
         preencher_senha_entrar(navegador, senha)
         cancelar_relatorio_em_andamento(navegador)
+        time.sleep(1)
         entrar_empregados(navegador)
 
         periodo = calcular_periodo_relatorios(admissao=admissao, demissao=demissao_ponto_partida)
