@@ -109,25 +109,21 @@ def buscar_empregados(navegador, matricula):
         campo_empregado.send_keys(matricula)
 
     print("Matrícula digitada. Aguardando o resultado carregar...")
-    time.sleep(1)
+    time.sleep(2)
 
+    # CORREÇÃO: Procura a primeira célula de dados da primeira linha retornada.
+    # Isto garante que o Selenium clica num elemento fisicamente presente e interativo.
     try:
-        if len(matricula) == 3:
-            linha_empregado = wait.until(
-                EC.element_to_be_clickable(
-                    (By.XPATH, f"//span[@title and starts-with(normalize-space(@title), '0{matricula} ')]")
-                )
-            )
-        else:
-            linha_empregado = wait.until(
-                EC.element_to_be_clickable(
-                    (By.XPATH, f"//span[@title and starts-with(normalize-space(@title), '{matricula} ')]")
-                )
-            )
-        linha_empregado.click()
+        xpath_primeira_celula = "//div[@id='employee-list-row-0']//div[contains(@class, 'body-column') and contains(@style, 'grid-area: 2 / 1')]"
+
+        celula_empregado = wait.until(
+            EC.element_to_be_clickable((By.XPATH, xpath_primeira_celula))
+        )
+        navegador.execute_script("arguments[0].click();", celula_empregado)
     except TimeoutException as erro:
-        registrar_ocorrencia("EMPREGADO_NAO_ENCONTRADO", matricula, detalhes=str(erro))
-        raise ValueError(f"Não foi possível encontrar a matrícula {matricula} na tela de busca.")
+        registrar_ocorrencia("EMPREGADO_NAO_ENCONTRADO", matricula,
+                             detalhes="Não foi possível clicar na célula de resultado (Row 0).")
+        raise ValueError(f"Não foi possível encontrar ou clicar na matrícula {matricula} na tela de busca.")
 
     time.sleep(1)
     print("Painel lateral aberto. Localizando o botão de folha...")
@@ -150,7 +146,6 @@ def buscar_empregados(navegador, matricula):
     print("Clicando no botão verde de folha...")
     navegador.execute_script("arguments[0].click();", botao_folha)
     print("Botão de folha acionado.")
-
 
 def calcular_diferenca(data_inicial, data_final):
     """Calcula a diferença em meses entre duas datas"""
